@@ -1,0 +1,295 @@
+/* ================================
+   RUTLAND POS - Global Styling
+   ================================ */
+
+/* Base Layout */
+html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+*, *::before, *::after {
+    box-sizing: inherit;
+}
+
+body {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #111;
+    color: #0f0;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+/* Container Styling */
+.container {
+    background-color: #000;
+    border: 1px solid #0f0;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 0 15px #0f0;
+    width: 90%;
+    max-width: 500px;
+    text-align: center;
+}
+
+.container > * {
+    margin-bottom: 1rem;
+}
+
+/* Headers */
+h1, h2, h3 {
+    color: #00ff88;
+    margin-bottom: 1rem;
+}
+
+/* Input Fields */
+input, select {
+    width: 100%;
+    margin: 0.5rem 0;
+    padding: 0.75rem;
+    border: 1px solid #0f0;
+    border-radius: 4px;
+    background-color: #222;
+    color: #0f0;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+/* Buttons */
+button, .btn {
+    margin: 0.5rem 0;
+    padding: 10px 20px;
+    background-color: #1a237e;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+    font-size: 1rem;
+    text-decoration: none;
+}
+
+button:hover, .btn:hover {
+    background-color: #3949ab;
+}
+
+/* Errors & Flash Notices */
+.error-code {
+    color: #ff4444;
+    font-weight: bold;
+}
+
+.reason, .note, .success {
+    margin-top: 10px;
+    font-style: italic;
+    color: #aaa;
+}
+
+.flash {
+    background-color: #440000;
+    border: 1px solid #ff0000;
+    padding: 10px;
+    color: #ff6666;
+    border-radius: 5px;
+    margin-bottom: 1rem;
+}
+
+/* Footer Buttons */
+.fixed-bottom-center {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 99;
+}
+
+/* Success Page */
+
+
+/* Button Group */
+.button-group {
+    margin-top: 1.5rem;
+}
+
+.button-group button {
+    font-size: 1rem;
+    padding: 10px 18px;
+    background-color: #1a237e;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.button-group button:hover {
+    background-color: #3949ab;
+}
+
+/* Login Page */
+.login-container {
+    max-width: 400px;
+    margin: 60px auto;
+    padding: 2rem;
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 10px;
+    box-shadow: 0 0 12px rgba(0,255,0,0.15);
+    text-align: center;
+}
+
+.login-logo {
+    display: block;
+    margin: 0 auto 20px auto;
+    max-width: 120px;
+    height: auto;
+    border-radius: 8px;
+}
+
+input[type="text"],
+input[type="password"] {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0 20px 0;
+    background-color: #111;
+    color: #0f0;
+    border: 1px solid #555;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+button[type="submit"] {
+    background-color: #1a237e;
+    color: white;
+    padding: 10px 20px;
+    width: 100%;
+    border: none;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+button[type="submit"]:hover {
+    background-color: #3949ab;
+}
+
+/* Receipt Section */
+.receipt {
+    background-color: #fff;
+    color: #000;
+    font-family: 'Courier New', monospace;
+    padding: 1rem;
+    border: 1px dashed #000;
+    margin-top: 1rem;
+    text-align: left;
+    font-size: 0.9rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.receipt > * {
+    margin-bottom: 0.5rem;
+}
+
+.receipt h3 {
+    color: #000;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.signature-line {
+    margin-top: 2rem;
+    border-top: 1px dashed #000;
+    width: 100%;
+    height: 30px;
+}
+
+.signature-note {
+    font-style: italic;
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: #000;
+    text-align: center;
+}
+
+/* Print Optimizations */
+@media print {
+    body {
+        background: white !important;
+        color: black !important;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+    }
+
+    .container,
+    .receipt {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+        border: none;
+    }
+
+    .btn, .button-group, .fixed-bottom-center, .logout-footer {
+        display: none !important;
+    }
+
+    .receipt {
+        border: none;
+        padding-top: 10px;
+    }
+
+    .receipt img {
+        max-width: 100px;
+        display: block;
+        margin: 0 auto 10px auto;
+    }
+}
+
+/* Small Screen Optimization */
+@media (max-width: 600px) {
+    html, body {
+        padding: 0;
+        margin: 0;
+        font-size: 15px;
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    .container,
+    .success-container,
+    .receipt {
+        width: 95vw !important;
+        padding: 1rem !important;
+        margin: 0 auto !important;
+	box-sizing: border-box;
+    }
+    
+    .success-container {
+        overflow-x: hidden;
+        word-break: break-word;
+        box-shadow: none !important;
+    }
+
+    input, button {
+        font-size: 1rem;
+        padding: 0.6rem;
+	max-width: 100%
+    }
+
+    h1 {
+        font-size: 1.4rem;
+    }
+
+    .receipt {
+        font-size: 0.85rem;
+    }
+
+}
+

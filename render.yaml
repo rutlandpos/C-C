@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: rutland-pos
+    env: python
+    buildCommand: bash build.sh
+    startCommand: python app.py
+    envVars:
+      - key: SECRET_KEY
+        value: rutland_secret_key_8583
+      - key: FLASK_ENV
+        value: production

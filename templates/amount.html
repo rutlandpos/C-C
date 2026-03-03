@@ -1,0 +1,73 @@
+{% extends "base.html" %} {% block content %}
+<form
+  method="POST"
+  action="{{ url_for('amount') }}"
+  class="form-wrap"
+  novalidate
+>
+  <label>Enter Amount:</label><br />
+  <input
+    id="amountInput"
+    name="amount"
+    inputmode="numeric"
+    pattern="^\d+$"
+    required
+    autocomplete="off"
+    maxlength="8"
+  /><br />
+  <small id="amtWarn" style="color: red; display: none"></small><br />
+  <button type="submit" id="amountNext">Next</button>
+</form>
+
+<script>
+  const amountInput = document.getElementById("amountInput");
+  const amtWarn = document.getElementById("amtWarn");
+  const amountNext = document.getElementById("amountNext");
+
+  const MIN = 1000000;
+  const MAX = 50000000;
+
+  amountInput.addEventListener("input", () => {
+    // Allow digits and dot, single dot only, max 2 decimals
+    let v = amountInput.value.replace(/[^\d.]/g, "");
+    const parts = v.split(".");
+    if (parts.length > 2) {
+      v = parts[0] + "." + parts.slice(1).join("");
+    }
+    if (parts[1]) {
+      parts[1] = parts[1].slice(0, 2);
+      v = parts[0] + "." + parts[1];
+    }
+    // Prevent leading zeros like "00" -> "0"
+    if (v.length > 1 && v[0] === "0" && v[1] !== ".") {
+      v = v.replace(/^0+/, "") || "0";
+    }
+    amountInput.value = v;
+
+    // Numeric check and max check
+    const num = parseFloat(v);
+    if (!isNaN(num) && num > MAX) {
+      amtWarn.style.display = "block";
+      amtWarn.innerText = `Amount must be ≤ ${MAX.toLocaleString()}`;
+      amountNext.disabled = true;
+    } else if (v === "" || v === "." || isNaN(num)) {
+      amtWarn.style.display = "block";
+      amtWarn.innerText = "Enter a valid number.";
+      amountNext.disabled = true;
+    } else {
+      amtWarn.style.display = "none";
+      amountNext.disabled = false;
+    }
+  });
+
+  // Prevent form submit if invalid (extra safe)
+  document.querySelector("form").addEventListener("submit", function (e) {
+    const num = parseInt(amountInput.value, 10);
+    if (isNaN(num) || num < MIN || num > MAX) {
+      e.preventDefault();
+      amtWarn.style.display = "block";
+      amtWarn.innerText = "Min: 1,000,000 | Max: 50,000,000";
+    }
+  });
+</script>
+{% endblock %}

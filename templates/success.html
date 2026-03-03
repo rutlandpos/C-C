@@ -1,0 +1,20 @@
+{% extends "base.html" %} {% block content %}
+<div class="success-container">
+  <h2 style="color: #0f0">✅ Transaction Approved</h2>
+  <p><strong>Transaction ID:</strong> {{ txn_id }}</p>
+  <p><strong>Card ending in:</strong> **** **** **** {{ pan }}</p>
+  <p>📧 A copy of the receipt has been sent to your merchant email.</p>
+  <p id="autoRedirectNote">Opening receipt...</p>
+
+  <div class="button-group">
+    <a href="{{ url_for('receipt') }}"><button>🧾 View Receipt</button></a>
+    <a href="{{ url_for('protocol') }}"><button>New Transaction</button></a>
+  </div>
+</div>
+
+<script>
+  setTimeout(function () {
+    window.location.href = "{{ url_for('receipt') }}";
+  }, 2000);
+</script>
+{% endblock %}

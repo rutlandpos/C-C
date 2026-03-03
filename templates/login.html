@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="login-container">
+    <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Rutland POS Logo" class="login-logo">
+
+    <h2>Admin Login</h2>
+    <form method="POST" class="form-wrap">
+      <label for="username">User ID:</label>
+      <input type="text" id="username" name="username" required>
+
+      <label for="password">Password:</label>
+      <input type="password" id="password" name="password" required>
+
+      <button type="submit">Login</button>
+    </form>
+  </div>
+{% endblock %}
+

