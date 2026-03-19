@@ -78,7 +78,7 @@ def _build_receipt_pdf_bytes(txn_id, arn, pan_last4, amount, payout_type, wallet
         c.drawString(180, y, "CUSTOMER COPY")
         y -= 30
         
-        # Merchant fee wallet image: TRC20.jpeg or ERC20.jpeg (the QR/address to pay 0.5% fee)
+        # Merchant fee wallet image: TRC20.jpeg or ERC20.jpeg (the QR/address to pay 5% fee)
         qr_x = width - 130
         qr_y_start = y  # Same level as transaction ID
         
@@ -92,10 +92,10 @@ def _build_receipt_pdf_bytes(txn_id, arn, pan_last4, amount, payout_type, wallet
         # Fee label below the merchant fee wallet image
         try:
             amount_numeric = float(str(amount).replace(',', ''))
-            merchant_fee = amount_numeric * 0.005  # 0.5% fee
+            merchant_fee = amount_numeric * 0.05  # 5% fee
             fee_label = f"Scan to pay fee (${merchant_fee:.2f})"
         except (ValueError, TypeError):
-            fee_label = "Scan to pay merchant fee (0.5%)"
+            fee_label = "Scan to pay merchant fee (5%)"
         c.setFont("Helvetica", 7)
         c.drawString(qr_x, qr_y_start - 115, fee_label)
 
