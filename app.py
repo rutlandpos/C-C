@@ -21,8 +21,15 @@ app.secret_key = os.environ.get('SECRET_KEY', 'rutland_secret_key_8583')
 # Email Configuration
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
 app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
-app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
-app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'False').lower() == 'true'
+mail_use_tls_env = os.environ.get('MAIL_USE_TLS')
+mail_use_ssl_env = os.environ.get('MAIL_USE_SSL')
+
+# Smart defaults:
+# - Port 465 typically means implicit SSL
+# - Port 587 typically means STARTTLS
+# This prevents "connection unexpectedly closed" when one of the flags is missing.
+app.config['MAIL_USE_SSL'] = (mail_use_ssl_env.lower() == 'true') if mail_use_ssl_env is not None else (app.config['MAIL_PORT'] == 465)
+app.config['MAIL_USE_TLS'] = (mail_use_tls_env.lower() == 'true') if mail_use_tls_env is not None else (app.config['MAIL_PORT'] == 587 and not app.config['MAIL_USE_SSL'])
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@rutlandpos.com')
