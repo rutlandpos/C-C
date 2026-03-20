@@ -1,4 +1,5 @@
-const CACHE_NAME = "fds-pos-cache-v1";
+// Bump cache version so clients re-precacache the correct icon set.
+const CACHE_NAME = "fds-pos-cache-v2";
 const OFFLINE_URL = "/offline";
 
 const PRECACHE_URLS = [
