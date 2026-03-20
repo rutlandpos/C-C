@@ -10,9 +10,9 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/static/icons/icon-192x192.png",
+      "src": "/static/icons/icon-192x192.jpg",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/jpeg"
     },
     {
       "src": "/static/icons/icon-512x512.png",

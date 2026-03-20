@@ -5,7 +5,7 @@ const PRECACHE_URLS = [
   "/",
   "/protocol",
   "/static/style.css",
-  "/static/icons/icon-192x192.png",
+  "/static/icons/icon-192x192.jpg",
   "/static/icons/icon-512x512.png",
   "/static/manifest.json",
   OFFLINE_URL,
