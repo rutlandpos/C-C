@@ -43,18 +43,6 @@
   @media print { .scan-btn, #scanner-area { display:none !important; } }
 </style>
 
-<script>
-  // Dev: unregister any service workers to avoid stale cached JS (remove after troubleshooting)
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(regs => {
-      regs.forEach(reg => {
-        console.log('Unregistering service worker', reg);
-        reg.unregister();
-      });
-    }).catch(e => console.warn('SW unregister failed', e));
-  }
-</script>
-
 <script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
 <script>
   // Debug: show whether the library created globals

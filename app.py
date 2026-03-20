@@ -770,9 +770,17 @@ def licence():
     return render_template("licence.html")
 
 @app.route('/offline')
-@login_required
 def offline():
+    """Public page so the service worker can cache it for offline fallback (no login redirect)."""
     return render_template('offline.html')
+
+
+@app.route('/service-worker.js')
+def service_worker():
+    """Serve SW from site root so scope is `/`, not `/static/` only."""
+    sw_path = os.path.join(app.root_path, 'static', 'service-worker.js')
+    return send_file(sw_path, mimetype='application/javascript')
+
 
 @app.route('/.well-known/assetlinks.json')
 def assetlinks():

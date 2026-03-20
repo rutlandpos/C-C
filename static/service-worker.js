@@ -1,28 +1,36 @@
 const CACHE_NAME = "fds-pos-cache-v1";
 const OFFLINE_URL = "/offline";
 
+const PRECACHE_URLS = [
+  "/",
+  "/protocol",
+  "/static/style.css",
+  "/static/icons/icon-192x192.png",
+  "/static/icons/icon-512x512.png",
+  "/static/manifest.json",
+  OFFLINE_URL,
+];
+
 self.addEventListener("install", (event) => {
   console.log("[ServiceWorker] Install");
 
+  // cache.addAll fails entirely if any URL fails; precache individually so one 404 doesn't break install
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll([
-        "/",
-        "/protocol",
-        "/static/style.css",
-        "/static/icons/icon-192x192.png",
-        "/static/icons/icon-512x512.png",
-        "/static/manifest.json",
-        OFFLINE_URL
-      ])
-    )
+      Promise.all(
+        PRECACHE_URLS.map((url) =>
+          cache.add(url).catch((err) => {
+            console.warn("[ServiceWorker] Precache skip:", url, err);
+          })
+        )
+      )
+    ).then(() => self.skipWaiting())
   );
-  self.skipWaiting();  // Activate immediately
 });
 
 self.addEventListener("activate", (event) => {
   console.log("[ServiceWorker] Activated");
-  // Clean up old caches if needed in future versions
+  event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener("fetch", (event) => {
