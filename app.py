@@ -166,11 +166,9 @@ def _build_receipt_pdf_bytes(txn_id, arn, pan_last4, amount, payout_type, wallet
         logging.exception("Failed to generate receipt PDF")
         raise
 
-# Configuration
 USERNAME = "njakamaltd"
 PASSWORD_FILE = "password.json"
 
-# Ensure password file exists
 if not os.path.exists(PASSWORD_FILE):
     with open(PASSWORD_FILE, "w") as f:
         hashed = hashlib.sha256("admin123".encode()).hexdigest()
