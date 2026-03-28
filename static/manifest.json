@@ -1,12 +1,12 @@
 {
-  "name": "Rutland POS",
-  "short_name": "RutlandPOS",
+  "name": "Njakam LTD",
+  "short_name": "NjakamLTD",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1a237e",
-  "description": "A realistic POS Terminal Simulation for Rutland Merchants.",
+  "description": "A realistic POS Terminal Simulation for Njakam LTD.",
   "orientation": "portrait",
   "icons": [
     {
