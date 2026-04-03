@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+{% block content %}
+<p><a class="text-link" href="{{ url_for('dashboard') }}">← Dashboard</a></p>
+<h2>Transaction history</h2>
+<p class="history-intro">
+  Approved sales are stored on this terminal (newest first, up to 2,000 entries). Card
+  numbers and approval codes are not saved in full.
+</p>
+
+{% if not transactions %}
+<p class="login-lead history-empty">
+  No transactions recorded yet. Use <strong>New sale</strong> on the dashboard.
+</p>
+{% else %}
+<div class="history-table-wrap">
+  <table class="history-grid" aria-label="Transaction history">
+    <thead>
+      <tr>
+        <th scope="col">Date / time</th>
+        <th scope="col">Txn ID</th>
+        <th scope="col">Amount</th>
+        <th scope="col">Card</th>
+        <th scope="col">Payout</th>
+        <th scope="col">Protocol</th>
+        <th scope="col">Mode</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in transactions %}
+      <tr>
+        <td>{{ t.timestamp or "—" }}</td>
+        <td class="mono">{{ t.txn_id or "—" }}</td>
+        <td class="history-amt">USD {{ t.amount_fmt or t.amount or "0.00" }}</td>
+        <td class="mono">
+          {% if t.pan_last4 %}•••• {{ t.pan_last4 }}{% else %}—{% endif %}
+        </td>
+        <td>{{ t.payout_type or "—" }}</td>
+        <td class="mono">{{ t.protocol_code or "—" }}</td>
+        <td>{% if t.offline %}Offline{% else %}Online{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,16 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Offline</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-  <div class="container">
-    <h1>🔌 You're Offline</h1>
-    <p>This POS terminal requires an internet connection.</p>
-    <p>Please reconnect and try again.</p>
+{% extends "base.html" %}
+{% block title %}Offline{% endblock %}
+{% block content %}
+<div class="success-container" style="padding-top: 0.5rem">
+  <div class="success-badge" style="background: var(--color-offline-soft); color: var(--color-offline)">
+    📴
   </div>
-</body>
-</html>
-
+  <h2 style="color: var(--color-text)">You’re offline</h2>
+  <p class="login-lead" style="margin-bottom: 0">
+    This terminal needs the internet to complete sales. Reconnect, then open the app again — your device may show cached pages until you’re back online.
+  </p>
+</div>
+{% endblock %}

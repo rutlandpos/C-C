@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Terminal access{% endblock %}
+{% block content %}
+<div class="login-container">
+  <h2>Terminal access</h2>
+  <p class="login-lead">
+    Enter the <strong>terminal access code</strong> for this screen (Settings or Reports).
+    The same code is used for both; each area asks once after you sign in. This is
+    <strong>not</strong> your staff sign-in password.
+  </p>
+  <form method="POST" class="form-wrap" autocomplete="off">
+    <input type="hidden" name="next" value="{{ next_path }}" />
+    <label for="gate_code">Access code</label>
+    <input
+      type="password"
+      id="gate_code"
+      name="gate_code"
+      required
+      autocomplete="off"
+    />
+    <button type="submit">Unlock</button>
+  </form>
+  <p class="terminal-gate-foot">
+    <a class="text-link" href="{{ url_for('dashboard') }}">← Dashboard</a>
+  </p>
+</div>
+{% endblock %}

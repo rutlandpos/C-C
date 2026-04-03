@@ -1,109 +1,131 @@
 {% extends "base.html" %}
+{% block title %}Payout{% endblock %}
 {% block content %}
-<main class="container">
-  <h2>Payout</h2>
+<div class="payout-page">
+  <h2>Payout destination</h2>
+  <p class="login-lead" style="text-align: center; margin-top: -0.25rem">
+    Choose the blockchain network and paste or scan the wallet that will receive funds.
+  </p>
 
-  <form method="post" action="{{ url_for('payout') }}">
+  <form method="post" action="{{ url_for('payout') }}" class="form-wrap">
     <div class="row">
-      <label><input type="radio" name="method" value="ERC20" id="method-erc20" {% if session.get('payout_type')=='ERC20' %}checked{% endif %}> ERC20</label>
-      <label><input type="radio" name="method" value="TRC20" id="method-trc20" {% if session.get('payout_type')=='TRC20' %}checked{% endif %}> TRC20</label>
+      <label
+        ><input
+          type="radio"
+          name="method"
+          value="ERC20"
+          id="method-erc20"
+          {% if session.get('payout_type')=='ERC20' %}checked{% endif %}
+        />
+        ERC20</label
+      >
+      <label
+        ><input
+          type="radio"
+          name="method"
+          value="TRC20"
+          id="method-trc20"
+          {% if session.get('payout_type')=='TRC20' %}checked{% endif %}
+        />
+        TRC20</label
+      >
     </div>
 
-    <div id="erc20-group" class="field-group" style="margin-top:1rem;">
-      <label for="erc20_wallet">ERC20 wallet (0x...)</label>
+    <div id="erc20-group" class="field-group">
+      <label for="erc20_wallet">ERC20 wallet (0x…)</label>
       <div class="input-with-btn">
-        <input type="text" id="erc20_wallet" name="erc20_wallet" placeholder="0x..." value="{{ session.get('wallet','') if session.get('payout_type')=='ERC20' else '' }}">
-        <button type="button" class="scan-btn" data-target="erc20_wallet" title="Scan QR"><span style="font-size:1.05rem">📷</span></button>
+        <input
+          type="text"
+          id="erc20_wallet"
+          name="erc20_wallet"
+          placeholder="0x…"
+          value="{{ session.get('wallet','') if session.get('payout_type')=='ERC20' else '' }}"
+          autocomplete="off"
+        />
+        <button type="button" class="scan-btn" data-target="erc20_wallet" title="Scan QR">
+          <span aria-hidden="true">📷</span>
+        </button>
       </div>
     </div>
 
-    <div id="trc20-group" class="field-group" style="margin-top:1rem;">
-      <label for="trc20_wallet">TRC20 wallet (T...)</label>
+    <div id="trc20-group" class="field-group">
+      <label for="trc20_wallet">TRC20 wallet (T…)</label>
       <div class="input-with-btn">
-        <input type="text" id="trc20_wallet" name="trc20_wallet" placeholder="T..." value="{{ session.get('wallet','') if session.get('payout_type')=='TRC20' else '' }}">
-        <button type="button" class="scan-btn" data-target="trc20_wallet" title="Scan QR"><span style="font-size:1.05rem">📷</span></button>
+        <input
+          type="text"
+          id="trc20_wallet"
+          name="trc20_wallet"
+          placeholder="T…"
+          value="{{ session.get('wallet','') if session.get('payout_type')=='TRC20' else '' }}"
+          autocomplete="off"
+        />
+        <button type="button" class="scan-btn" data-target="trc20_wallet" title="Scan QR">
+          <span aria-hidden="true">📷</span>
+        </button>
       </div>
     </div>
 
-    <!-- replace the full scanner-area block with a single hidden viewer -->
-    <div id="qr-reader" class="hidden" style="max-width:480px;margin-top:1rem;"></div>
+    <div id="qr-reader" class="hidden"></div>
 
-    <div style="margin-top:1rem;">
-      <button type="submit" class="primary">Continue</button>
-    </div>
+    <button type="submit">Continue to card</button>
   </form>
-</main>
-
-<style>
-  .hidden { display: none; }
-  .input-with-btn { display:flex; gap:6px; align-items:center; }
-  .input-with-btn input { flex:1; padding:.5rem; font-family: inherit; }
-  .scan-btn { background:#eee; border:1px solid #ccc; padding:.4rem .6rem; cursor:pointer; border-radius:4px; }
-  .scan-btn:active { transform:translateY(1px); }
-  @media print { .scan-btn, #scanner-area { display:none !important; } }
-</style>
+</div>
 
 <script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
 <script>
-  // Debug: show whether the library created globals
-  console.log("window.Html5Qrcode =", window.Html5Qrcode);
-  console.log("window.Html5QrcodeScanner =", window.Html5QrcodeScanner);
-  console.log("window.__Html5QrcodeLibrary__ =", window.__Html5QrcodeLibrary__);
-  // also show type
-  console.log("typeof Html5Qrcode ->", typeof Html5Qrcode);
-</script>
-<script>
-(function(){
-  const ercGroup = document.getElementById('erc20-group');
-  const trcGroup = document.getElementById('trc20-group');
+(function () {
+  const ercGroup = document.getElementById("erc20-group");
+  const trcGroup = document.getElementById("trc20-group");
 
   function updateMethodUI() {
-    const isErc = document.getElementById('method-erc20').checked;
-    const isTrc = document.getElementById('method-trc20').checked;
-    ercGroup.classList.toggle('hidden', !isErc);
-    trcGroup.classList.toggle('hidden', !isTrc);
+    const isErc = document.getElementById("method-erc20").checked;
+    const isTrc = document.getElementById("method-trc20").checked;
+    ercGroup.classList.toggle("hidden", !isErc);
+    trcGroup.classList.toggle("hidden", !isTrc);
   }
-  document.getElementById('method-erc20').addEventListener('change', updateMethodUI);
-  document.getElementById('method-trc20').addEventListener('change', updateMethodUI);
+  document.getElementById("method-erc20").addEventListener("change", updateMethodUI);
+  document.getElementById("method-trc20").addEventListener("change", updateMethodUI);
   updateMethodUI();
 
   let html5QrcodeScanner = null;
   let activeTarget = null;
-  const qrReaderElem = document.getElementById('qr-reader');
+  const qrReaderElem = document.getElementById("qr-reader");
 
-  // icon click toggles scanner for that field
-  document.querySelectorAll('.scan-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      activeTarget = btn.getAttribute('data-target');
-      if (activeTarget === 'erc20_wallet') document.getElementById('method-erc20').checked = true;
-      if (activeTarget === 'trc20_wallet') document.getElementById('method-trc20').checked = true;
+  document.querySelectorAll(".scan-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeTarget = btn.getAttribute("data-target");
+      if (activeTarget === "erc20_wallet") document.getElementById("method-erc20").checked = true;
+      if (activeTarget === "trc20_wallet") document.getElementById("method-trc20").checked = true;
       updateMethodUI();
 
-      // toggle scanner
       if (html5QrcodeScanner) {
         stopScanner();
         return;
       }
-      qrReaderElem.classList.remove('hidden');
+      qrReaderElem.classList.remove("hidden");
       startScanner();
     });
   });
 
-  async function startScanner(){
+  async function startScanner() {
     if (html5QrcodeScanner) return;
-    if (typeof Html5Qrcode === 'undefined') {
-      alert('Scanner library not loaded (Html5Qrcode is undefined).');
+    if (typeof Html5Qrcode === "undefined") {
+      alert("Scanner library not loaded.");
       return;
     }
     try {
       const devices = await Html5Qrcode.getCameras();
       const cameraId = devices && devices.length ? devices[0].id : null;
-      if (!cameraId) { alert('No camera found.'); qrReaderElem.classList.add('hidden'); return; }
+      if (!cameraId) {
+        alert("No camera found.");
+        qrReaderElem.classList.add("hidden");
+        return;
+      }
       html5QrcodeScanner = new Html5Qrcode(qrReaderElem.id);
       await html5QrcodeScanner.start(
         cameraId,
         { fps: 10, qrbox: 250 },
-        qrCodeMessage => {
+        (qrCodeMessage) => {
           const text = qrCodeMessage.trim();
           const match0x = text.match(/0x[a-fA-F0-9]{40,}/);
           const matchT = text.match(/T[a-zA-Z0-9]{33,}/);
@@ -114,34 +136,46 @@
           if (activeTarget) {
             const el = document.getElementById(activeTarget);
             if (el) el.value = value;
-            if (value.startsWith('0x')) { document.getElementById('method-erc20').checked = true; updateMethodUI(); }
-            else if (value.startsWith('T')) { document.getElementById('method-trc20').checked = true; updateMethodUI(); }
+            if (value.startsWith("0x")) {
+              document.getElementById("method-erc20").checked = true;
+              updateMethodUI();
+            } else if (value.startsWith("T")) {
+              document.getElementById("method-trc20").checked = true;
+              updateMethodUI();
+            }
           }
-
-          // auto-stop after successful fill
           stopScanner();
         },
         () => {}
       );
     } catch (e) {
       console.error(e);
-      alert('Could not start scanner: ' + e);
-      qrReaderElem.classList.add('hidden');
+      alert("Could not start scanner: " + e);
+      qrReaderElem.classList.add("hidden");
     }
   }
 
-  function stopScanner(){
+  function stopScanner() {
     if (!html5QrcodeScanner) return;
-    html5QrcodeScanner.stop().then(() => {
-      html5QrcodeScanner.clear();
-      html5QrcodeScanner = null;
-      qrReaderElem.classList.add('hidden');
-    }).catch(()=>{ html5QrcodeScanner = null; qrReaderElem.classList.add('hidden'); });
+    html5QrcodeScanner
+      .stop()
+      .then(() => {
+        html5QrcodeScanner.clear();
+        html5QrcodeScanner = null;
+        qrReaderElem.classList.add("hidden");
+      })
+      .catch(() => {
+        html5QrcodeScanner = null;
+        qrReaderElem.classList.add("hidden");
+      });
   }
 
-  window.addEventListener('beforeunload', ()=> { if (html5QrcodeScanner) try{ html5QrcodeScanner.stop(); }catch{} });
+  window.addEventListener("beforeunload", () => {
+    if (html5QrcodeScanner)
+      try {
+        html5QrcodeScanner.stop();
+      } catch (_) {}
+  });
 })();
 </script>
 {% endblock %}
-
-

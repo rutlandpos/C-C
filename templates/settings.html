@@ -1,0 +1,18 @@
+{% extends "base.html" %} {% block title %}Settings{% endblock %} {% block
+content %}
+<p><a class="text-link" href="{{ url_for('dashboard') }}">← Dashboard</a></p>
+<h2>Terminal settings</h2>
+<p
+  class="login-lead"
+  style="text-align: left; max-width: 36rem; margin: 1rem auto 0"
+>
+  Printer, receipt branding, mail relay, and security options will be
+  configurable here. Server ID and mail settings currently use environment
+  variables on the host.
+</p>
+<p class="login-lead" style="text-align: left; max-width: 36rem; margin: 0.75rem auto 0">
+  <strong>Terminal access code</strong> (same for Settings and Reports) is separate from
+  staff login. Each area prompts once per sign-in. Set <code>TERMINAL_GATE_CODE</code> in
+  the environment before first run to choose the initial code.
+</p>
+{% endblock %}

@@ -1,20 +1,24 @@
-{% extends "base.html" %} {% block content %}
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
 <div class="login-container">
   <img
-    src="{{ url_for('static', filename='logo.jpg') }}"
-    alt="Njakam LTD Logo"
+    src="{{ url_for('static', filename='logo.png') }}"
+    alt=""
     class="login-logo"
+    width="112"
+    height="112"
   />
-
-  <h2>Admin Login</h2>
+  <h2>Staff sign in</h2>
+  <p class="login-lead">Enter your terminal credentials to start a session. Customer-facing screens use a separate flow after login.</p>
   <form method="POST" class="form-wrap">
-    <label for="username">User ID:</label>
-    <input type="text" id="username" name="username" required />
+    <label for="username">User ID</label>
+    <input type="text" id="username" name="username" required autocomplete="username" />
 
-    <label for="password">Password:</label>
-    <input type="password" id="password" name="password" required />
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" required autocomplete="current-password" />
 
-    <button type="submit">Login</button>
+    <button type="submit">Sign in</button>
   </form>
 </div>
 {% endblock %}

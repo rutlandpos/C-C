@@ -2,12 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>NJAKAM LTD</title>
+    <title>{% block title %}Njakam LTD{% endblock %} · Terminal</title>
     <link
       rel="manifest"
       href="{{ url_for('static', filename='manifest.json') }}"
     />
-    <meta name="theme-color" content="#1a237e" />
+    <meta name="theme-color" content="#0f766e" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
@@ -15,33 +15,63 @@
     <link
       rel="icon"
       href="{{ url_for('static', filename='favicon.ico') }}"
+      sizes="any"
       type="image/x-icon"
+    />
+    <link
+      rel="apple-touch-icon"
+      href="{{ url_for('static', filename='icons/icon-192x192.png') }}"
     />
     <link
       rel="stylesheet"
       href="{{ url_for('static', filename='style.css') }}"
     />
+    {% block head_extra %}{% endblock %}
   </head>
-  <body>
-    <div class="container">
-      <h1>NJAKAM LTD Terminal</h1>
+  <body class="{% block body_class %}{% endblock %}">
+    <header class="app-header">
+      <a
+        href="{{ url_for('dashboard') if session.get('logged_in') else url_for('login') }}"
+        class="app-brand"
+      >
+        <img
+          src="{{ url_for('static', filename='logo.png') }}"
+          alt=""
+          class="app-brand__mark"
+          width="40"
+          height="40"
+          decoding="async"
+        />
+        <span class="app-brand__text">
+          <span class="app-brand__name">Njakam LTD</span>
+          <span class="app-brand__tag">Point of sale</span>
+        </span>
+      </a>
+      <div class="app-header__actions">
+        {% if session.get('logged_in') %}
+        <a class="text-link" href="{{ url_for('logout') }}">Sign out</a>
+        {% endif %}
+      </div>
+    </header>
 
+    <main class="container{% block container_extra %}{% endblock %}">
       {% with messages = get_flashed_messages() %} {% if messages %}
-      <div class="flash">
+      <div class="flash" role="alert">
         {% for msg in messages %}
         <p>{{ msg }}</p>
         {% endfor %}
       </div>
       {% endif %} {% endwith %} {% block content %}{% endblock %}
-    </div>
+    </main>
 
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker
           .register("/service-worker.js")
-          .then((reg) => console.log("✅ Service Worker Registered", reg))
-          .catch((err) => console.error("❌ Service Worker failed:", err));
+          .then((reg) => console.log("Service worker registered", reg))
+          .catch((err) => console.error("Service worker failed:", err));
       }
     </script>
+    {% block scripts %}{% endblock %}
   </body>
 </html>

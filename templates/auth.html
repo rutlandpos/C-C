@@ -1,36 +1,36 @@
 {% extends "base.html" %}
-
+{% block title %}Authorization{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<div class="auth-page">
+  <h2>Authorization code</h2>
+  <p class="login-lead" style="text-align: center; margin-top: -0.25rem">
+    Enter the {{ expected_length }}-digit code from the issuer.
+  </p>
 
-<form id="authForm" method="POST" action="{{ url_for('auth') }}" class="form-wrap" autocomplete="off" novalidate>
-    <label>Enter Authorization Code:</label><br>
+  <form id="authForm" method="POST" action="{{ url_for('auth') }}" class="form-wrap" autocomplete="off" novalidate>
+    <label for="authInput">Approval code</label>
+    <input
+      type="text"
+      name="auth"
+      id="authInput"
+      required
+      inputmode="numeric"
+      pattern="[0-9]*"
+      maxlength="{{ expected_length }}"
+      autocomplete="off"
+    />
 
-    <div style="position: relative;">
-        <!-- keep input as text to avoid password manager triggers -->
-        <input type="text"
-               name="auth"
-               id="authInput"
-               required
-               inputmode="numeric"
-               pattern="[0-9]*"
-               maxlength="{{ expected_length }}"
-               autocomplete="off"
-               style="padding-right: 40px;"
-        ><br>
-    </div>
+    <button type="submit" id="verifyBtn" disabled>Verify &amp; process</button>
+  </form>
 
-    <button type="submit" id="verifyBtn" disabled>Verify</button>
-</form>
+  <div id="progress" class="auth-progress" role="status" aria-live="polite">
+    <p id="msg" style="margin: 0">Please wait…</p>
+  </div>
 
-<!-- Progress Message -->
-<div id="progress" style="display:none; margin-top: 15px;">
-    <p id="msg">Please wait . . .</p>
+  {% if warning %}
+  <p class="auth-warning">{{ warning }}</p>
+  {% endif %}
 </div>
-
-{% if warning %}
-<p style="color: red;">{{ warning }}</p>
-{% endif %}
 
 <script>
 // Elements

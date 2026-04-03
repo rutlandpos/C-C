@@ -3,253 +3,390 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Receipt</title>
-
+    <title>Receipt · Njakam LTD</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
+      :root {
+        --paper: #fffdf8;
+        --paper-edge: #f0ebe3;
+        --ink: #0f172a;
+        --muted: #64748b;
+        --teal: #0f766e;
+        --teal-soft: #ccfbf1;
+        --violet: #6d28d9;
+        --violet-soft: #ede9fe;
+        --radius: 14px;
+        --font-ui: "Plus Jakarta Sans", system-ui, sans-serif;
+        --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
       body {
-        background: #f4f6fb;
-        font-family: "Courier New", monospace;
         margin: 0;
-        padding: 20px 10px;
+        min-height: 100vh;
+        font-family: var(--font-ui);
+        color: var(--ink);
+        background: linear-gradient(165deg, #e8edf4 0%, #dce4f0 100%);
+        padding: 24px 14px 48px;
       }
-
-      .receipt-container {
-        max-width: 420px;
-        margin: auto;
+      .receipt-shell {
+        max-width: 440px;
+        margin: 0 auto;
       }
-
-      .receipt {
-        background: #fff;
-        border-radius: 6px;
-        padding: 20px;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      .receipt-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .brand-mini {
+        font-weight: 700;
+        font-size: 0.95rem;
+        letter-spacing: -0.02em;
+      }
+      .conn-badge {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 6px 12px;
+        border-radius: 999px;
+      }
+      .conn-badge--online {
+        background: #e0f2fe;
+        color: #0369a1;
+      }
+      .conn-badge--offline {
+        background: var(--violet-soft);
+        color: var(--violet);
+      }
+      .receipt-card {
+        background: var(--paper);
+        border-radius: var(--radius);
+        border: 1px solid var(--paper-edge);
+        box-shadow: 0 12px 40px rgba(15, 23, 42, 0.1);
+        padding: 22px 20px 20px;
         margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
       }
-
+      .receipt-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--teal), #134e4a);
+      }
+      .receipt-card--customer::before {
+        background: linear-gradient(90deg, #0369a1, var(--teal));
+      }
+      .tear {
+        height: 10px;
+        margin: 8px 0 20px;
+        background: radial-gradient(circle at 10px 5px, transparent 6px, var(--paper-edge) 6px);
+        background-size: 20px 10px;
+        background-repeat: repeat-x;
+        opacity: 0.85;
+      }
       .receipt-logo {
         display: block;
         margin: 0 auto 10px;
-        width: 80px;
+        width: 72px;
+        height: auto;
+        border-radius: 10px;
       }
-
-      h2 {
+      h1.receipt-title {
         text-align: center;
-        margin: 6px 0 12px;
-        font-size: 1.3rem;
-        letter-spacing: 1px;
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin: 0 0 4px;
+        letter-spacing: 0.04em;
       }
-
-      .copy-label {
+      .receipt-sub {
         text-align: center;
-        font-weight: bold;
-        margin-bottom: 12px;
-        color: #444;
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin: 0 0 16px;
+        line-height: 1.45;
       }
-
-      p {
-        margin: 5px 0;
-        font-size: 0.92rem;
+      .copy-pill {
+        display: inline-block;
+        margin: 0 auto 16px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        background: var(--teal-soft);
+        color: var(--teal);
       }
-
-      .signature-line {
-        margin-top: 30px;
-        border-top: 1px solid #000;
+      .copy-pill-wrap {
         text-align: center;
-        padding-top: 8px;
-        font-size: 0.9rem;
       }
-
-      .footer-note {
+      .receipt-card--customer .copy-pill {
+        background: #e0f2fe;
+        color: #0369a1;
+      }
+      dl.receipt-grid {
+        margin: 0;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        column-gap: 12px;
+        row-gap: 8px;
+        align-items: baseline;
+        font-size: 0.82rem;
+      }
+      dl.receipt-grid dt {
+        margin: 0;
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      dl.receipt-grid dd {
+        margin: 0;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        word-break: break-word;
+        text-align: right;
+        justify-self: end;
+      }
+      .amt-highlight {
+        font-size: 1.35rem !important;
+        font-weight: 700;
+        font-family: var(--font-ui) !important;
+        color: var(--teal) !important;
+      }
+      .sig {
+        margin-top: 20px;
+        padding-top: 12px;
+        border-top: 1px dashed var(--paper-edge);
+        text-align: center;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      .wallet-block {
+        text-align: center;
         margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px dashed var(--paper-edge);
+      }
+      .wallet-block img {
+        max-width: 200px;
+        height: auto;
+        border-radius: 10px;
+        margin-top: 8px;
+      }
+      .wallet-caption {
         font-size: 0.75rem;
+        color: var(--muted);
+        margin: 0 0 6px;
+      }
+      .footer-legal {
+        margin-top: 14px;
+        font-size: 0.72rem;
+        line-height: 1.5;
+        color: var(--muted);
         text-align: center;
         font-style: italic;
-        line-height: 1.4;
       }
-
-      /* Buttons */
-
-      .btn-group {
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .actions a,
+      .actions button {
+        display: block;
+        width: 100%;
         text-align: center;
-        margin-top: 25px;
-      }
-
-      .btn {
-        padding: 10px 18px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        margin: 6px;
+        padding: 14px 18px;
+        border-radius: 12px;
+        font-family: var(--font-ui);
         font-size: 0.95rem;
-        font-weight: bold;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
       }
-
-      .print-btn {
-        background: #1a237e;
+      .btn-print {
+        background: linear-gradient(180deg, #0d9488, var(--teal));
         color: #fff;
+        box-shadow: 0 2px 8px rgba(15, 118, 110, 0.35);
       }
-
-      .new-btn {
-        background: #2e7d32;
-        color: #fff;
+      .btn-ghost {
+        background: #fff;
+        color: var(--teal);
+        border: 2px solid var(--teal-soft) !important;
       }
-
-      .btn:hover {
-        opacity: 0.9;
-      }
-
-      /* Print styles for both copies */
       @media print {
         body {
-          background: white;
+          background: #fff;
           padding: 0;
         }
-        .btn-group {
-          display: none;
+        .receipt-toolbar,
+        .actions,
+        .tear {
+          display: none !important;
         }
-        .receipt {
+        .receipt-card {
           box-shadow: none;
+          border: 1px solid #ddd;
           page-break-after: always;
-          margin-bottom: 0;
         }
-        .receipt:last-of-type {
+        .receipt-card:last-of-type {
           page-break-after: auto;
         }
       }
     </style>
   </head>
-
   <body>
-    <div class="receipt-container">
-      <!-- MERCHANT COPY -->
-      <div class="receipt">
-        <img
-          src="{{ url_for('static', filename='logo.jpg') }}"
-          class="receipt-logo"
-        />
-
-        <h2>NJAKAM LTD</h2>
-        <p style="text-align: center">
-          74428 - 00200 Nairobi | support@njakamltd.com
-        </p>
-
-        <div class="copy-label">Merchant Copy</div>
-
-        <p><strong>Date:</strong> {{ timestamp }}</p>
-        <p><strong>Txn ID:</strong> {{ txn_id }}</p>
-        <p><strong>ARN:</strong> {{ arn }}</p>
-        <p><strong>Terminal:</strong> POS</p>
-        <p><strong>Connected Server ID:</strong> {{ server_id }}</p>
-        <p><strong>Email:</strong> {{ email }}</p>
-
-        <p>
-          <strong>Protocol:</strong>
-          {{ protocol_version }} ({{ auth_code | length }} digit)
-        </p>
-
-        <p><strong>Card:</strong> **** **** **** {{ pan }}</p>
-        <p><strong>Card Type:</strong> {{ card_type }}</p>
-        <p><strong>Amount:</strong> USD {{ amount }}</p>
-        <p><strong>Payout Method:</strong> {{ payout }}</p>
-
-        {% if wallet %}
-        <p><strong>Wallet:</strong> {{ wallet[:5] }}****{{ wallet[-4:] }}</p>
+    <div class="receipt-shell">
+      <div class="receipt-toolbar">
+        <span class="brand-mini">Njakam LTD</span>
+        {% if server_id == 'OFFLINE' %}
+        <span class="conn-badge conn-badge--offline">Offline capture</span>
+        {% else %}
+        <span class="conn-badge conn-badge--online">Online</span>
         {% endif %}
-
-        <p><strong>Authorization Code:</strong> {{ auth_code }}</p>
-        <p><strong>ISO Field 18:</strong> {{ iso_field_18 }}</p>
-        <p><strong>ISO Field 25:</strong> {{ iso_field_25 }}</p>
-        <p><strong>Status:</strong> {{ field39 }} — Approved</p>
-
-        <div class="signature-line">Signature</div>
-
-        {% if wallet_image %}
-        <div style="text-align: center; margin: 12px 0">
-          <img
-            src="{{ url_for('static', filename=wallet_image) }}"
-            alt="Wallet"
-            style="max-width: 200px; height: auto"
-          />
-        </div>
-        {% endif %}
-
-        <div class="footer-note">
-          I acknowledge satisfactory receipt of goods and/or services.<br />
-          <strong>NO REFUND.</strong><br />
-          *Trusted Transaction*
-        </div>
       </div>
 
-      <!-- CUSTOMER COPY -->
-      <div class="receipt">
-        <img
-          src="{{ url_for('static', filename='logo.jpg') }}"
-          class="receipt-logo"
-        />
-
-        <h2>NJAKAM LTD</h2>
-        <p style="text-align: center">
-          74428 - 00200 Nairobi | support@njakamltd.com
+      <!-- Merchant -->
+      <article class="receipt-card">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="" class="receipt-logo" />
+        <h1 class="receipt-title">NJAKAM LTD</h1>
+        <p class="receipt-sub">
+          74428 – 00200 Nairobi · Terminal support +14145126049 · support@njakamltd.com
         </p>
+        <div class="copy-pill-wrap"><span class="copy-pill">Merchant copy</span></div>
 
-        <div class="copy-label">Customer Copy</div>
+        <dl class="receipt-grid">
+          <dt>Date</dt>
+          <dd>{{ timestamp }}</dd>
+          <dt>Txn ID</dt>
+          <dd>{{ txn_id }}</dd>
+          <dt>ARN</dt>
+          <dd>{{ arn }}</dd>
+          <dt>Terminal</dt>
+          <dd>POS</dd>
+          <dt>Connection</dt>
+          <dd>{% if server_id == 'OFFLINE' %}Offline{% else %}Online ({{ server_id }}){% endif %}</dd>
+          <dt>Email</dt>
+          <dd>{{ email }}</dd>
+          <dt>Protocol</dt>
+          <dd>{{ protocol_version }} · {{ auth_code | length }}-digit</dd>
+          <dt>Card</dt>
+          <dd>•••• •••• •••• {{ pan }}</dd>
+          <dt>Card type</dt>
+          <dd>{{ card_type }}</dd>
+          <dt>Amount</dt>
+          <dd class="amt-highlight">USD {{ amount }}</dd>
+          <dt>Payout</dt>
+          <dd>{{ payout }}</dd>
+          {% if wallet %}
+          <dt>Wallet</dt>
+          <dd>{{ wallet[:5] }}••••{{ wallet[-4:] }}</dd>
+          {% endif %}
+          <dt>Auth code</dt>
+          <dd>{{ auth_code }}</dd>
+          <dt>ISO 18 / 25</dt>
+          <dd>{{ iso_field_18 }} / {{ iso_field_25 }}</dd>
+          <dt>Status</dt>
+          <dd>{{ field39 }} — Approved</dd>
+        </dl>
 
-        <p><strong>Date:</strong> {{ timestamp }}</p>
-        <p><strong>Txn ID:</strong> {{ txn_id }}</p>
-        <p><strong>ARN:</strong> {{ arn }}</p>
-        <p><strong>Terminal:</strong> POS</p>
-        <p><strong>Connected Server ID:</strong> {{ server_id }}</p>
-        <p><strong>Email:</strong> {{ email }}</p>
+        <div class="sig">Signature</div>
 
-        <p>
-          <strong>Protocol:</strong>
-          {{ protocol_version }} ({{ auth_code | length }} digit)
-        </p>
-
-        <p><strong>Card:</strong> **** **** **** {{ pan }}</p>
-        <p><strong>Card Type:</strong> {{ card_type }}</p>
-        <p><strong>Amount:</strong> USD {{ amount }}</p>
-        <p><strong>Payout Method:</strong> {{ payout }}</p>
-
-        {% if wallet %}
-        <p><strong>Wallet:</strong> {{ wallet[:5] }}****{{ wallet[-4:] }}</p>
+        {% if wallet_image %}
+        <div class="wallet-block">
+          <img src="{{ url_for('static', filename=wallet_image) }}" alt="Fee wallet" />
+        </div>
         {% endif %}
 
-        <p><strong>Authorization Code:</strong> {{ auth_code }}</p>
-        <p><strong>ISO Field 18:</strong> {{ iso_field_18 }}</p>
-        <p><strong>ISO Field 25:</strong> {{ iso_field_25 }}</p>
-        <p><strong>Status:</strong> {{ field39 }} — Approved</p>
+        <p class="footer-legal">
+          I acknowledge satisfactory receipt of goods and/or services.<br />
+          <strong style="color: var(--ink)">No refund.</strong> Trusted transaction.
+        </p>
+      </article>
 
-        <div class="signature-line">Signature</div>
+      <div class="tear" aria-hidden="true"></div>
 
-        <div style="text-align: center; margin: 12px 0">
-          <p><strong>Pay 0.5% Merchant fee on this wallet:</strong></p>
+      <!-- Customer -->
+      <article class="receipt-card receipt-card--customer">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="" class="receipt-logo" />
+        <h1 class="receipt-title">NJAKAM LTD</h1>
+        <p class="receipt-sub">
+          74428 – 00200 Nairobi · Terminal support +14145126049 · support@njakamltd.com
+        </p>
+        <div class="copy-pill-wrap"><span class="copy-pill">Customer copy</span></div>
+
+        <dl class="receipt-grid">
+          <dt>Date</dt>
+          <dd>{{ timestamp }}</dd>
+          <dt>Txn ID</dt>
+          <dd>{{ txn_id }}</dd>
+          <dt>ARN</dt>
+          <dd>{{ arn }}</dd>
+          <dt>Terminal</dt>
+          <dd>POS</dd>
+          <dt>Connection</dt>
+          <dd>{% if server_id == 'OFFLINE' %}Offline{% else %}Online ({{ server_id }}){% endif %}</dd>
+          <dt>Email</dt>
+          <dd>{{ email }}</dd>
+          <dt>Protocol</dt>
+          <dd>{{ protocol_version }} · {{ auth_code | length }}-digit</dd>
+          <dt>Card</dt>
+          <dd>•••• •••• •••• {{ pan }}</dd>
+          <dt>Card type</dt>
+          <dd>{{ card_type }}</dd>
+          <dt>Amount</dt>
+          <dd class="amt-highlight">USD {{ amount }}</dd>
+          <dt>Payout</dt>
+          <dd>{{ payout }}</dd>
+          {% if wallet %}
+          <dt>Wallet</dt>
+          <dd>{{ wallet[:5] }}••••{{ wallet[-4:] }}</dd>
+          {% endif %}
+          <dt>Auth code</dt>
+          <dd>{{ auth_code }}</dd>
+          <dt>ISO 18 / 25</dt>
+          <dd>{{ iso_field_18 }} / {{ iso_field_25 }}</dd>
+          <dt>Status</dt>
+          <dd>{{ field39 }} — Approved</dd>
+        </dl>
+
+        <div class="sig">Signature</div>
+
+        <div class="wallet-block">
+          <p class="wallet-caption"><strong>Pay 0.5% merchant fee</strong> to this wallet</p>
           {% if wallet_image %}
-          <img
-            src="{{ url_for('static', filename=wallet_image) }}"
-            alt="Wallet"
-            style="max-width: 200px; height: auto"
-          />
+          <img src="{{ url_for('static', filename=wallet_image) }}" alt="Fee wallet" />
           {% endif %}
         </div>
 
-        <div class="footer-note">
+        <p class="footer-legal">
           I acknowledge satisfactory receipt of goods and/or services.<br />
-          <strong>NO REFUND.</strong><br />
-          *Trusted Transaction*
-        </div>
+          <strong style="color: var(--ink)">No refund.</strong> Trusted transaction.
+        </p>
+      </article>
+
+      <div class="actions">
+        <button type="button" class="btn-print" onclick="window.print()">Print receipt</button>
+        <a class="btn-ghost" href="{{ url_for('dashboard') }}">Dashboard</a>
       </div>
-    </div>
-
-    <!-- BUTTONS -->
-    <div class="btn-group">
-      <button class="btn print-btn" onclick="window.print()">
-        Print Receipt
-      </button>
-
-      <a href="{{ url_for('protocol') }}">
-        <button class="btn new-btn">New Transaction</button>
-      </a>
     </div>
   </body>
 </html>

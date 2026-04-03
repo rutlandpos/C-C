@@ -1,4 +1,6 @@
-{% extends "base.html" %} {% block content %}
+{% extends "base.html" %}
+{% block title %}Card{% endblock %}
+{% block content %}
 <form
   method="POST"
   action="{{ url_for('card') }}"
@@ -7,9 +9,16 @@
   novalidate
   id="cardForm"
 >
-  <h2>Manual Card Entry</h2>
+  <h2>Card details</h2>
+  <p class="login-lead" style="text-align: center; margin-top: -0.25rem">
+    {% if offline_no_cvv %}
+    Offline protocol: CVV is optional. All other fields are still verified.
+    {% else %}
+    Enter the card as printed. We never store the full number after this session.
+    {% endif %}
+  </p>
 
-  <label>Card Number :</label><br />
+  <label for="pan">Card number</label>
   <input
     type="text"
     id="pan"
@@ -20,10 +29,10 @@
     maxlength="19"
     placeholder="card number"
     autocomplete="off"
-  /><br />
-  <small id="panWarn" style="color: red; display: none"></small><br />
+  />
+  <small id="panWarn" style="color: var(--color-danger); display: none"></small>
 
-  <label>Expiry Date (MM/YY):</label><br />
+  <label for="expiry">Expiry (MM/YY)</label>
   <input
     type="text"
     id="expiry"
@@ -34,11 +43,11 @@
     maxlength="5"
     placeholder="MM/YY"
     autocomplete="off"
-  /><br />
-  <small id="expWarn" style="color: red; display: none"></small><br />
+  />
+  <small id="expWarn" style="color: var(--color-danger); display: none"></small>
 
 {% if not offline_no_cvv %}
-  <label>CVV:</label><br />
+  <label for="cvv">CVV</label>
   <input
     type="text"
     id="cvv"
@@ -49,21 +58,23 @@
     maxlength="4"
     placeholder="CVV"
     autocomplete="off"
-  /><br />
-  <small id="cvvWarn" style="color: red; display: none"></small><br />
+  />
+  <small id="cvvWarn" style="color: var(--color-danger); display: none"></small>
 {% endif %}
 
-  <label>Email:</label><br />
-  <input
-    type="email"
-    id="email"
-    name="email"
-    required
-    autocomplete="off"
-  /><br />
-  <small id="emailWarn" style="color: red; display: none"></small><br />
+  <div class="form-field form-field--inline">
+    <label for="email">Receipt email</label>
+    <input
+      type="email"
+      id="email"
+      name="email"
+      required
+      autocomplete="off"
+    />
+  </div>
+  <small id="emailWarn" style="color: var(--color-danger); display: none"></small>
 
-  <button type="submit" id="cardNext">Proceed to Auth</button>
+  <button type="submit" id="cardNext">Continue</button>
 </form>
 
 <script>

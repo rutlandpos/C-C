@@ -1,12 +1,13 @@
 // Bump cache version so clients re-precacache the correct icon set.
-const CACHE_NAME = "fds-pos-cache-v2";
+const CACHE_NAME = "fds-pos-cache-v5";
 const OFFLINE_URL = "/offline";
 
 const PRECACHE_URLS = [
   "/",
+  "/dashboard",
   "/protocol",
   "/static/style.css",
-  "/static/icons/icon-192x192.jpg",
+  "/static/icons/icon-192x192.png",
   "/static/icons/icon-512x512.png",
   "/static/manifest.json",
   OFFLINE_URL,

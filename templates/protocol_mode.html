@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Connection mode{% endblock %}
+{% block body_class %}app-body--protocol-mode{% endblock %}
+{% block container_extra %} container--protocol-mode{% endblock %}
+{% block content %}
+<p class="protocol-mode-back">
+  <a class="text-link" href="{{ url_for('dashboard') }}">← Dashboard</a>
+</p>
+<h2 class="protocol-page-title">HOST CONNECTIONS</h2>
+
+<form method="POST" action="{{ url_for('protocol') }}" class="protocol-mode-form">
+  <div class="protocol-mode-split">
+    <button type="submit" name="protocol_mode" value="online" class="mode-tile mode-tile--online">
+      <span class="mode-tile__label">Online</span>
+    </button>
+    <button type="submit" name="protocol_mode" value="offline" class="mode-tile mode-tile--offline">
+      <span class="mode-tile__label">Offline</span>
+    </button>
+  </div>
+</form>
+{% endblock %}

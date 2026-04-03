@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Select protocol{% endblock %}
+{% block content %}
+<p class="protocol-mode-back">
+  <a class="text-link" href="{{ url_for('protocol') }}">← Connection mode</a>
+</p>
+<h2 class="protocol-page-title">
+  {% if protocol_mode == 'online' %}ONLINE PROTOCOLS{% else %}OFFLINE PROTOCOLS{% endif %}
+</h2>
+
+<form
+  method="POST"
+  action="{{ url_for('protocol_select') }}"
+  class="protocol-form"
+  id="protocolSelectForm"
+>
+  <fieldset
+    class="protocol-section {% if protocol_mode == 'online' %}protocol-section--online{% else %}protocol-section--offline{% endif %}"
+  >
+    <legend class="visually-hidden">Protocols</legend>
+    <div class="protocol-options">
+      {% for p in protocols_dict %}
+      {% set tail = p[14:] if p.startswith('POS Terminal -') else p %}
+      {% set code_part = tail.split('(')[0].strip() %}
+      {% set desc = tail.split('(', 1)[1].replace(')', '').strip() if '(' in tail else tail %}
+      <label class="protocol-card">
+        <input type="radio" name="protocol" value="{{ p }}" {% if loop.first %}required{% endif %} />
+        <span class="protocol-card__body">
+          <span class="protocol-card__code">{{ code_part }}</span>
+          <span class="protocol-card__label">{{ desc }}</span>
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+
+  <div class="protocol-submit-wrap">
+    <button type="submit">Continue to amount</button>
+  </div>
+</form>
+{% endblock %}
+{% block head_extra %}
+<style>
+  fieldset.protocol-section {
+    border: none;
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+  }
+</style>
+{% endblock %}

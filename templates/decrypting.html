@@ -1,25 +1,28 @@
 {% extends "base.html" %}
+{% block title %}Securing…{% endblock %}
 {% block content %}
-<div style="text-align:center; margin-top:50px; font-family:monospace;">
-  <h2>Connecting...</h2>
-  <pre id="binary"></pre>
+<div class="decrypting-panel">
+  <h2>Securing session</h2>
+  <p class="login-lead" style="margin-bottom: 1rem">
+    Packaging your transaction for the host. This only takes a moment.
+  </p>
+  <pre id="binary" aria-hidden="true"></pre>
 </div>
 
 <script>
-let bin = document.getElementById("binary");
-function randomBinary(len) {
-  return Array.from({length: len}, () => Math.random() > 0.5 ? "1" : "0").join("");
-}
-let i = 0;
-let interval = setInterval(() => {
-  bin.textContent += randomBinary(64) + "\n";
-  if (++i > 20) bin.textContent = ""; // keep it scrolling
-}, 200);
+  const bin = document.getElementById("binary");
+  function randomBinary(len) {
+    return Array.from({ length: len }, () => (Math.random() > 0.5 ? "1" : "0")).join("");
+  }
+  let i = 0;
+  const interval = setInterval(() => {
+    bin.textContent += randomBinary(48) + "\n";
+    if (++i > 24) bin.textContent = "";
+  }, 180);
 
-// After short delay redirect to processing, then success (same as other protocols)
-setTimeout(() => {
-  window.location.href = "{{ url_for('processing') }}";
-}, 5000);
+  setTimeout(() => {
+    clearInterval(interval);
+    window.location.href = "{{ url_for('processing') }}";
+  }, 5000);
 </script>
 {% endblock %}
-

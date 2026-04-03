@@ -1,124 +1,122 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Verifying Transaction...</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <style>
-    body {
-      background-color: black;
-      color: #0f0;
-      font-family: 'Courier New', Courier, monospace;
-      overflow: hidden;
-      margin: 0;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Not approved · Njakam LTD</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+    <meta name="theme-color" content="#0f766e" />
+  </head>
+  <body class="page-rejected">
+    <div id="binary-stream" aria-hidden="true"></div>
+    <div id="decrypting" class="rejected-status">Verifying with host…</div>
 
-    #binary-stream {
-      position: fixed;
-      top: 0;
-      left: 0;
-      z-index: 1;
-      width: 100vw;
-      height: 100vh;
-      white-space: pre;
-      font-size: 14px;
-      line-height: 16px;
-      opacity: 0.3;
-      pointer-events: none;
-    }
+    <div
+      id="final-message"
+      class="rejected-dialog"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="rej-title"
+    >
+      <h1 id="rej-title">Transaction not approved</h1>
+      <p class="error-code">ISO8583 field 39: <strong>{{ code }}</strong></p>
+      <p class="reason">{{ reason }}</p>
+      <p
+        class="reason"
+        style="font-family: var(--font-mono); font-size: 0.8rem"
+      >
+        Protocol flag: <code>0xDEADBEEF</code>
+      </p>
+      <a href="{{ url_for('dashboard') }}" class="btn">Dashboard</a>
+    </div>
 
-    #decrypting {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      z-index: 2;
-      transform: translate(-50%, -50%);
-      font-size: 1.5rem;
-      text-align: center;
-      animation: blink 1s step-start infinite;
-      color: lime;
-    }
-
-    @keyframes blink {
-      50% { opacity: 0; }
-    }
-
-    #final-message {
-      display: none;
-      position: fixed;
-      z-index: 3;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: #f00;
-      background: black;
-      padding: 20px;
-      border: 2px solid #f00;
-      border-radius: 5px;
-      text-align: center;
-      width: 90%;
-      max-width: 500px;
-    }
-
-    .btn {
-      background-color: red;
-      color: white;
-      padding: 10px 20px;
-      text-decoration: none;
-      display: inline-block;
-      margin-top: 20px;
-      border-radius: 4px;
-    }
-
-    @media screen and (max-width: 600px) {
-      #final-message {
-        font-size: 0.9rem;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div id="binary-stream"></div>
-  <div id="decrypting">Decrypting file... █</div>
-
-  <div id="final-message">
-    <h1>Transaction Rejected ❌</h1>
-    <p class="error-code">ISO8583 Field 39 Code: <strong>{{ code }}</strong></p>
-    <p class="reason">{{ reason }}</p>
-    <p>Encrypted Protocol Flag: <code>0xDEADBEEF</code></p>
-    <a href="{{ url_for('protocol') }}" class="btn">New Transaction</a>
-  </div>
-
-  <script>
-    const binary = document.getElementById('binary-stream');
-    let chars = "01";
-
-    function generateBinaryStream(lines = 100) {
-      let output = "";
-      for (let i = 0; i < lines; i++) {
-        let line = '';
-        for (let j = 0; j < 100; j++) {
-          line += chars.charAt(Math.floor(Math.random() * chars.length));
+    <script>
+      const binary = document.getElementById("binary-stream");
+      const chars = "01";
+      function generateBinaryStream(lines = 80) {
+        let output = "";
+        for (let i = 0; i < lines; i++) {
+          let line = "";
+          for (let j = 0; j < 80; j++) {
+            line += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          output += line + "\n";
         }
-        output += line + '\n';
+        return output;
       }
-      return output;
-    }
+      function updateBinary() {
+        binary.innerText = generateBinaryStream();
+      }
+      setInterval(updateBinary, 400);
+      updateBinary();
 
-    function updateBinary() {
-      binary.innerText = generateBinaryStream();
-    }
-
-    setInterval(updateBinary, 500);
-    updateBinary();
-
-    // Final rejection message after 30 seconds
-    setTimeout(() => {
-      document.getElementById('binary-stream').style.display = 'none';
-      document.getElementById('decrypting').style.display = 'none';
-      document.getElementById('final-message').style.display = 'block';
-    }, 30000);  // 30 seconds
-  </script>
-</body>
+      setTimeout(() => {
+        binary.style.display = "none";
+        document.getElementById("decrypting").style.display = "none";
+        document.getElementById("final-message").style.display = "block";
+      }, 30000);
+    </script>
+    <style>
+      .page-rejected {
+        position: relative;
+        min-height: 100vh;
+      }
+      #binary-stream {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        width: 100vw;
+        height: 100vh;
+        white-space: pre;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        line-height: 13px;
+        pointer-events: none;
+        padding: 1rem;
+      }
+      .rejected-status {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        z-index: 2;
+        transform: translate(-50%, -50%);
+        font-size: 1.15rem;
+        font-weight: 600;
+        text-align: center;
+        color: var(--color-text-muted);
+        font-family: var(--font-ui);
+        max-width: 280px;
+        line-height: 1.4;
+      }
+      .rejected-dialog {
+        display: none;
+        position: fixed;
+        z-index: 3;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 92%;
+        max-width: 420px;
+        padding: 1.75rem 1.5rem;
+        text-align: center;
+      }
+      .rejected-dialog h1 {
+        font-size: 1.2rem;
+        margin: 0 0 0.75rem;
+      }
+      .rejected-dialog .btn {
+        margin-top: 1.25rem;
+        width: 100%;
+        background: var(--color-danger);
+        box-shadow: var(--shadow-sm);
+      }
+      .rejected-dialog .btn:hover {
+        filter: brightness(1.06);
+      }
+    </style>
+  </body>
 </html>
-

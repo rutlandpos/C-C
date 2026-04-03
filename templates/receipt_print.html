@@ -3,296 +3,227 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Receipt - Print</title>
+    <title>Print receipt · Njakam LTD</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
+      :root {
+        --ink: #0f172a;
+        --muted: #475569;
+        --teal: #0f766e;
+        --font-ui: "Plus Jakarta Sans", system-ui, sans-serif;
+        --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
       * {
-        margin: 0;
-        padding: 0;
         box-sizing: border-box;
       }
       body {
-        font-family: "Courier New", monospace;
-        background: white;
-        color: black;
+        margin: 0;
+        font-family: var(--font-ui);
+        color: var(--ink);
+        background: #f1f5f9;
         print-color-adjust: exact;
         -webkit-print-color-adjust: exact;
       }
-      .print-container {
+      .slip {
         width: 80mm;
+        max-width: 100%;
         margin: 0 auto;
-        padding: 10mm;
-        background: white;
+        padding: 10mm 6mm 12mm;
+        background: #fffef9;
       }
-      .receipt {
-        border: 1px dashed #000;
-        padding: 15px;
-        margin-bottom: 20px;
-        page-break-after: avoid;
+      .slip + .slip {
+        margin-top: 8mm;
       }
-      .logo {
+      .slip-topbar {
+        height: 3px;
+        background: linear-gradient(90deg, var(--teal), #134e4a);
+        margin: -10mm -6mm 8mm;
+        border-radius: 0;
+      }
+      .slip--cust .slip-topbar {
+        background: linear-gradient(90deg, #0369a1, var(--teal));
+      }
+      .logo-text {
         text-align: center;
-        font-weight: bold;
-        font-size: 14px;
-        margin-bottom: 5px;
+        font-weight: 700;
+        font-size: 11pt;
+        letter-spacing: 0.08em;
+        margin-bottom: 2mm;
       }
-      .header {
+      .addr {
         text-align: center;
-        font-size: 11px;
-        margin-bottom: 10px;
-        border-bottom: 1px solid #000;
-        padding-bottom: 5px;
+        font-size: 7.5pt;
+        color: var(--muted);
+        line-height: 1.35;
+        margin-bottom: 4mm;
+        border-bottom: 1px dashed #cbd5e1;
+        padding-bottom: 3mm;
       }
-      .copy-label {
+      .copy-tag {
         text-align: center;
-        font-weight: bold;
-        font-size: 10px;
-        margin-bottom: 8px;
+        font-size: 7pt;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        margin-bottom: 3mm;
+        color: var(--teal);
       }
-      .field {
-        font-size: 10px;
-        line-height: 1.3;
-        margin: 3px 0;
+      .slip--cust .copy-tag {
+        color: #0369a1;
       }
-      .field-label {
-        display: inline-block;
-        width: 50%;
-        font-weight: bold;
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 2mm;
+        font-size: 7.5pt;
+        margin: 1.2mm 0;
+        line-height: 1.35;
       }
-      .field-value {
-        display: inline-block;
-        width: 50%;
+      .row .k {
+        font-weight: 600;
+        color: var(--muted);
+        flex: 0 0 38%;
+      }
+      .row .v {
+        font-family: var(--font-mono);
+        font-size: 7pt;
         text-align: right;
         word-break: break-word;
+        flex: 1;
       }
-      .divider {
-        border-top: 1px dashed #000;
-        margin: 8px 0;
+      .row--amt .v {
+        font-family: var(--font-ui);
+        font-weight: 700;
+        font-size: 10pt;
+        color: var(--teal);
       }
-      .signature-line {
-        margin-top: 15px;
-        border-top: 1px solid #000;
-        padding-top: 20px;
+      .conn-flag {
+        display: inline-block;
+        font-size: 6.5pt;
+        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: #e0f2fe;
+        color: #0369a1;
+      }
+      .conn-flag.off {
+        background: #ede9fe;
+        color: #6d28d9;
+      }
+      .sig {
+        margin-top: 4mm;
+        padding-top: 3mm;
+        border-top: 1px solid var(--ink);
         text-align: center;
-        font-size: 10px;
+        font-size: 7pt;
       }
-      .footer {
+      .wallet-box {
+        margin-top: 3mm;
+        padding-top: 3mm;
+        border-top: 1px dashed #cbd5e1;
         text-align: center;
-        font-size: 8px;
-        margin-top: 8px;
-        line-height: 1.5;
+        font-size: 7pt;
+      }
+      .wallet-box strong {
+        display: block;
+        margin-bottom: 1mm;
+      }
+      .foot {
+        margin-top: 3mm;
+        font-size: 6.5pt;
         font-style: italic;
-      }
-      .wallet-section {
         text-align: center;
-        margin: 8px 0;
-        font-size: 9px;
-      }
-      .wallet-image {
-        max-width: 100%;
-        height: auto;
-        margin: 5px 0;
+        color: var(--muted);
+        line-height: 1.45;
       }
       @media print {
         body {
-          margin: 0;
-          padding: 0;
-          width: 80mm;
+          background: #fff;
         }
-        .print-container {
+        .slip {
           margin: 0;
-          padding: 0;
-          width: 100%;
-        }
-        .receipt {
-          margin: 0;
-          padding: 15px;
+          padding: 8mm 5mm;
         }
       }
     </style>
   </head>
   <body>
-    <div class="print-container">
-      <!-- MERCHANT COPY -->
-      <div class="receipt">
-        <div class="logo">NJAKAM LTD</div>
-        <div class="header">
-          74428 - 00200 Nairobi<br />support@njakamltd.com
-        </div>
-        <div class="copy-label">MERCHANT COPY</div>
+    {% set is_off = (server_id == 'OFFLINE') %}
 
-        <div class="field">
-          <span class="field-label">Date:</span>
-          <span class="field-value">{{ timestamp }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Txn ID:</span>
-          <span class="field-value">{{ txn_id }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">ARN:</span>
-          <span class="field-value">{{ arn }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Terminal:</span>
-          <span class="field-value">POS</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Connected Server ID:</span>
-          <span class="field-value">{{ server_id }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Email:</span>
-          <span class="field-value">{{ email }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Protocol:</span>
-          <span class="field-value">{{ protocol_version }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Card:</span>
-          <span class="field-value">**** **** **** {{ pan }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Card Type:</span>
-          <span class="field-value">{{ card_type }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Amount:</span>
-          <span class="field-value"><strong>USD {{ amount }}</strong></span>
-        </div>
-        <div class="field">
-          <span class="field-label">Payout:</span>
-          <span class="field-value">{{ payout }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Wallet:</span>
-          <span class="field-value">{{ wallet[:5] }}****{{ wallet[-4:] }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Auth Code:</span>
-          <span class="field-value"><strong>{{ auth_code }}</strong></span>
-        </div>
-        <div class="field">
-          <span class="field-label">ISO Field 18:</span>
-          <span class="field-value">{{ iso_field_18 }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">ISO Field 25:</span>
-          <span class="field-value">{{ iso_field_25 }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Status:</span>
-          <span class="field-value"
-            ><strong style="color: green">APPROVED</strong></span
-          >
-        </div>
-
-        <div class="signature-line">Signature</div>
-
-        <div class="wallet-section">
-          <strong>Merchant Wallet:</strong><br />
-          {{ wallet }}
-        </div>
-
-        <div class="footer">
-          I acknowledge satisfactory receipt of goods and/or services.<br />
-          <strong>NO REFUND.</strong><br />
-          *Trusted Transaction*
-        </div>
+    <div class="slip slip--merchant">
+      <div class="slip-topbar"></div>
+      <div class="logo-text">NJAKAM LTD</div>
+      <div class="addr">
+        74428 – 00200 Nairobi<br />Terminal support +14145126049 · support@njakamltd.com
       </div>
+      <div class="copy-tag">Merchant copy</div>
 
-      <!-- CUSTOMER COPY -->
-      <div class="receipt">
-        <div class="logo">NJAKAM LTD</div>
-        <div class="header">
-          74428 - 00200 Nairobi<br />support@njakamltd.com
-        </div>
-        <div class="copy-label">CUSTOMER COPY</div>
-
-        <div class="field">
-          <span class="field-label">Date:</span>
-          <span class="field-value">{{ timestamp }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Txn ID:</span>
-          <span class="field-value">{{ txn_id }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">ARN:</span>
-          <span class="field-value">{{ arn }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Terminal:</span>
-          <span class="field-value">POS</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Connected Server ID:</span>
-          <span class="field-value">{{ server_id }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Email:</span>
-          <span class="field-value">{{ email }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Protocol:</span>
-          <span class="field-value">{{ protocol_version }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Card:</span>
-          <span class="field-value">**** **** **** {{ pan }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Card Type:</span>
-          <span class="field-value">{{ card_type }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Amount:</span>
-          <span class="field-value"><strong>USD {{ amount }}</strong></span>
-        </div>
-        <div class="field">
-          <span class="field-label">Payout:</span>
-          <span class="field-value">{{ payout }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Wallet:</span>
-          <span class="field-value">{{ wallet[:5] }}****{{ wallet[-4:] }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Auth Code:</span>
-          <span class="field-value"><strong>{{ auth_code }}</strong></span>
-        </div>
-        <div class="field">
-          <span class="field-label">ISO Field 18:</span>
-          <span class="field-value">{{ iso_field_18 }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">ISO Field 25:</span>
-          <span class="field-value">{{ iso_field_25 }}</span>
-        </div>
-        <div class="field">
-          <span class="field-label">Status:</span>
-          <span class="field-value"
-            ><strong style="color: green">APPROVED</strong></span
-          >
-        </div>
-
-        <div class="signature-line">Signature</div>
-
-        <div class="wallet-section">
-          <strong>Pay 0.5% Merchant fee on this wallet:</strong><br />
-          {{ wallet }}
-        </div>
-
-        <div class="footer">
-          I acknowledge satisfactory receipt of goods and/or services.<br />
-          <strong>NO REFUND.</strong><br />
-          *Trusted Transaction*
-        </div>
+      <div class="row"><span class="k">Date</span><span class="v">{{ timestamp }}</span></div>
+      <div class="row"><span class="k">Txn ID</span><span class="v">{{ txn_id }}</span></div>
+      <div class="row"><span class="k">ARN</span><span class="v">{{ arn }}</span></div>
+      <div class="row"><span class="k">Terminal</span><span class="v">POS</span></div>
+      <div class="row">
+        <span class="k">Mode</span>
+        <span class="v"
+          >{% if is_off %}<span class="conn-flag off">Offline</span>{% else %}<span class="conn-flag">Online</span> {{ server_id }}{% endif %}</span
+        >
       </div>
+      <div class="row"><span class="k">Email</span><span class="v">{{ email }}</span></div>
+      <div class="row"><span class="k">Protocol</span><span class="v">{{ protocol_version }}</span></div>
+      <div class="row"><span class="k">Card</span><span class="v">•••• {{ pan }}</span></div>
+      <div class="row"><span class="k">Type</span><span class="v">{{ card_type }}</span></div>
+      <div class="row row--amt"><span class="k">Amount</span><span class="v">USD {{ amount }}</span></div>
+      <div class="row"><span class="k">Payout</span><span class="v">{{ payout }}</span></div>
+      <div class="row"><span class="k">Wallet</span><span class="v">{% if wallet %}{{ wallet[:5] }}••{{ wallet[-4:] }}{% else %}—{% endif %}</span></div>
+      <div class="row"><span class="k">Auth</span><span class="v"><strong>{{ auth_code }}</strong></span></div>
+      <div class="row"><span class="k">ISO 18/25</span><span class="v">{{ iso_field_18 }} / {{ iso_field_25 }}</span></div>
+      <div class="row"><span class="k">Status</span><span class="v" style="color: var(--teal); font-weight: 700">APPROVED</span></div>
+
+      <div class="sig">Signature</div>
+      <div class="wallet-box"><strong>Merchant wallet</strong>{{ wallet or '—' }}</div>
+      <div class="foot">No refund. Trusted transaction.</div>
+    </div>
+
+    <div class="slip slip--cust">
+      <div class="slip-topbar"></div>
+      <div class="logo-text">NJAKAM LTD</div>
+      <div class="addr">
+        74428 – 00200 Nairobi<br />Terminal support +14145126049 · support@njakamltd.com
+      </div>
+      <div class="copy-tag">Customer copy</div>
+
+      <div class="row"><span class="k">Date</span><span class="v">{{ timestamp }}</span></div>
+      <div class="row"><span class="k">Txn ID</span><span class="v">{{ txn_id }}</span></div>
+      <div class="row"><span class="k">ARN</span><span class="v">{{ arn }}</span></div>
+      <div class="row"><span class="k">Terminal</span><span class="v">POS</span></div>
+      <div class="row">
+        <span class="k">Mode</span>
+        <span class="v"
+          >{% if is_off %}<span class="conn-flag off">Offline</span>{% else %}<span class="conn-flag">Online</span> {{ server_id }}{% endif %}</span
+        >
+      </div>
+      <div class="row"><span class="k">Email</span><span class="v">{{ email }}</span></div>
+      <div class="row"><span class="k">Protocol</span><span class="v">{{ protocol_version }}</span></div>
+      <div class="row"><span class="k">Card</span><span class="v">•••• {{ pan }}</span></div>
+      <div class="row"><span class="k">Type</span><span class="v">{{ card_type }}</span></div>
+      <div class="row row--amt"><span class="k">Amount</span><span class="v">USD {{ amount }}</span></div>
+      <div class="row"><span class="k">Payout</span><span class="v">{{ payout }}</span></div>
+      <div class="row"><span class="k">Wallet</span><span class="v">{% if wallet %}{{ wallet[:5] }}••{{ wallet[-4:] }}{% else %}—{% endif %}</span></div>
+      <div class="row"><span class="k">Auth</span><span class="v"><strong>{{ auth_code }}</strong></span></div>
+      <div class="row"><span class="k">ISO 18/25</span><span class="v">{{ iso_field_18 }} / {{ iso_field_25 }}</span></div>
+      <div class="row"><span class="k">Status</span><span class="v" style="color: var(--teal); font-weight: 700">APPROVED</span></div>
+
+      <div class="sig">Signature</div>
+      <div class="wallet-box"><strong>Pay 0.5% merchant fee</strong>{{ wallet or '—' }}</div>
+      <div class="foot">No refund. Trusted transaction.</div>
     </div>
 
     <script>
-      // Auto-trigger print dialog when page loads
       window.onload = function () {
         window.print();
       };
