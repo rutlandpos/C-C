@@ -31,8 +31,8 @@
   const amtWarn = document.getElementById("amtWarn");
   const amountNext = document.getElementById("amountNext");
 
-  const MIN = 10;
-  const MAX = 20;
+  const MIN = 1000000;
+  const MAX = 50000000;
 
   amountInput.addEventListener("input", () => {
     let v = amountInput.value.replace(/[^\d.]/g, "");
@@ -69,7 +69,7 @@
     if (isNaN(num) || num < MIN || num > MAX) {
       e.preventDefault();
       amtWarn.style.display = "block";
-      amtWarn.innerText = "Min: 10 | Max: 20";
+      amtWarn.innerText = "Min: 1000000 | Max: 50000000";
     }
   });
 </script>
