@@ -595,12 +595,6 @@ def settings():
 def reports():
     return render_template('reports.html')
 
-@app.route('/logout')
-def logout():
-    session.clear()
-    flash("You have been logged out.")
-    return redirect(url_for('login'))
-
 @app.route('/protocol', methods=['GET', 'POST'])
 @login_required
 def protocol():

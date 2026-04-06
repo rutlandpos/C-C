@@ -136,12 +136,6 @@ body::before {
   letter-spacing: 0.06em;
 }
 
-.app-header__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
 .text-link {
   font-size: 0.875rem;
   font-weight: 600;
@@ -967,11 +961,40 @@ body.app-body--dashboard {
   align-items: stretch;
 }
 
-/* ~80% less outer spacing than default header / main padding */
+/* Dashboard: centered, larger logo + title */
 body.app-body--dashboard .app-header {
   max-width: 100%;
   width: 100%;
-  padding: 0.2rem clamp(0.2rem, 0.8vw, 0.3rem) 0;
+  padding: 0.65rem clamp(0.2rem, 0.8vw, 0.3rem) 0.4rem;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+body.app-body--dashboard .app-brand {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.85rem;
+}
+
+body.app-body--dashboard .app-brand__mark {
+  width: clamp(80px, 22vw, 128px);
+  height: clamp(80px, 22vw, 128px);
+}
+
+body.app-body--dashboard .app-brand__text {
+  align-items: center;
+}
+
+body.app-body--dashboard .app-brand__name {
+  font-size: clamp(1.35rem, 4.8vw, 2rem);
+  letter-spacing: -0.03em;
+}
+
+body.app-body--dashboard .app-brand__tag {
+  display: none;
 }
 
 .container.container--dashboard {
@@ -982,7 +1005,7 @@ body.app-body--dashboard .app-header {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - 64px);
+  min-height: calc(100vh - 180px);
   margin-top: 0.05rem;
   margin-bottom: 0;
   padding: 0.1rem clamp(0.15rem, 0.6vw, 0.25rem) 0.2rem;
@@ -1339,7 +1362,10 @@ body.app-body--protocol-mode .app-header {
   }
 
   body.app-body--dashboard .app-header {
-    padding: 0.15rem clamp(0.15rem, 0.6vw, 0.25rem) 0;
+    padding: 0.5rem clamp(0.15rem, 0.6vw, 0.25rem) 0.35rem;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
   }
 
   .container.container--dashboard {
