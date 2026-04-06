@@ -1,4 +1,4 @@
-# app.py - cleaned NJAKAM LTD POS (all cards auto-authorize)
+# app.py - cleaned NJAKAM LIMITED POS (all cards auto-authorize)
 from flask import Flask, render_template, request, redirect, session, url_for, send_file, flash, jsonify
 from flask_mail import Mail, Message
 import random, logging, os, hashlib, json, re, tempfile, threading
@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from datetime import datetime
 from html import escape as html_escape
 import io
+import imaplib
+import time
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.colors import HexColor, black
 from reportlab.pdfgen import canvas
@@ -38,16 +40,77 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'suppo
 mail = Mail(app)
 
 # Footer on receipt emails (plain text + HTML)
-TERMINAL_MAIL_ADDRESS_LINE = "74428 - 00200 Nairobi"
+TERMINAL_MAIL_ADDRESS_LINE = "Paarl City, 7624 - South Africa"
 TERMINAL_MAIL_CONTACT = "+14145126049"
 TERMINAL_MAIL_SUPPORT_EMAIL = "support@njakamltd.com"
+
+
+def _mail_imap_host_default():
+    """Spacemail and many hosts use the same hostname for SMTP and IMAP; Gmail uses imap.gmail.com."""
+    h = (os.environ.get("MAIL_IMAP_HOST") or "").strip()
+    if h:
+        return h
+    smtp = (app.config.get("MAIL_SERVER") or "").strip().lower()
+    if "gmail" in smtp:
+        return "imap.gmail.com"
+    if smtp:
+        return (app.config.get("MAIL_SERVER") or "").strip()
+    return "imap.gmail.com"
+
+
+def _mail_imap_sent_folder_default():
+    """Gmail uses a special folder path; most Dovecot/cPanel-style hosts (e.g. Spacemail) use Sent."""
+    f = (os.environ.get("MAIL_IMAP_SENT_FOLDER") or "").strip()
+    if f:
+        return f
+    smtp = (app.config.get("MAIL_SERVER") or "").strip().lower()
+    if "gmail" in smtp:
+        return "[Gmail]/Sent Mail"
+    return "Sent"
+
+
+def _mail_save_copy_to_sent_folder(msg):
+    """
+    SMTP (Flask-Mail) delivers mail but does not file a copy in the sender's Sent folder.
+    When MAIL_SAVE_TO_SENT is enabled, append the same MIME to the account's Sent mailbox via IMAP
+    (same approach Spacemail documents: IMAP append, not SMTP).
+    """
+    flag = (os.environ.get("MAIL_SAVE_TO_SENT") or "").strip().lower()
+    if flag not in ("1", "true", "yes", "on"):
+        return
+    imap_user = (os.environ.get("MAIL_IMAP_USER") or app.config.get("MAIL_USERNAME") or "").strip()
+    imap_password = (os.environ.get("MAIL_IMAP_PASSWORD") or app.config.get("MAIL_PASSWORD") or "").strip()
+    if not imap_user or not imap_password:
+        logging.warning(
+            "MAIL_SAVE_TO_SENT is set but IMAP credentials are missing "
+            "(set MAIL_IMAP_USER / MAIL_IMAP_PASSWORD or MAIL_USERNAME / MAIL_PASSWORD); skipping Sent copy"
+        )
+        return
+    host = _mail_imap_host_default()
+    folder = _mail_imap_sent_folder_default()
+    try:
+        port = int((os.environ.get("MAIL_IMAP_PORT") or "993").strip())
+    except ValueError:
+        port = 993
+    try:
+        raw = msg.as_bytes()
+    except Exception:
+        logging.exception("Could not serialize outbound message for Sent folder copy")
+        return
+    try:
+        with imaplib.IMAP4_SSL(host, port) as M:
+            M.login(imap_user, imap_password)
+            M.append(folder, "\\Seen", imaplib.Time2Internaldate(time.time()), raw)
+        logging.info("Saved copy of sent message to IMAP folder %r on %s:%s", folder, host, port)
+    except Exception as e:
+        logging.warning("Could not append copy to Sent folder %r on %s:%s: %s", folder, host, port, e)
 
 
 def _receipt_email_plain_and_html(txn_id, amount_fmt, timestamp):
     """Plain and HTML bodies for receipt emails; address block includes contact phone."""
     plain = f"""Dear Customer,
 
-Thank you for your transaction at Njakam LTD.
+Thank you for your transaction at NJAKAM LIMITED.
 
 Please find your receipt attached as a PDF.
 
@@ -58,7 +121,7 @@ Transaction Summary:
 - Status: Approved
 
 ---
-Njakam LTD Terminal
+NJAKAM LIMITED Terminal
 {TERMINAL_MAIL_ADDRESS_LINE}
 Terminal support: {TERMINAL_MAIL_CONTACT}
 
@@ -70,7 +133,7 @@ This is an automated receipt. Please keep for your records.
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head><body style="margin:16px;font-family:system-ui,-apple-system,sans-serif;font-size:15px;color:#0f172a;line-height:1.5;">
 <p>Dear Customer,</p>
-<p>Thank you for your transaction at Njakam LTD.</p>
+<p>Thank you for your transaction at NJAKAM LIMITED.</p>
 <p>Please find your receipt attached as a PDF.</p>
 <p><strong>Transaction Summary:</strong></p>
 <ul style="margin:0.5em 0;padding-left:1.25em;">
@@ -80,7 +143,7 @@ This is an automated receipt. Please keep for your records.
 <li>Status: Approved</li>
 </ul>
 <hr style="border:none;border-top:1px solid #cbd5e1;margin:1.25rem 0;">
-<p style="margin:0;"><strong>Njakam LTD Terminal</strong><br>
+<p style="margin:0;"><strong>NJAKAM LIMITED Terminal</strong><br>
 {html_escape(TERMINAL_MAIL_ADDRESS_LINE)}<br>
 Terminal support: <a href="tel:{html_escape(tel_href)}">{html_escape(TERMINAL_MAIL_CONTACT)}</a></p>
 <p style="margin-top:1rem;font-size:13px;color:#64748b;">This is an automated receipt. Please keep for your records.</p>
@@ -145,11 +208,10 @@ def _build_receipt_pdf_bytes(txn_id, arn, pan_last4, amount, payout_type, wallet
         img_w, img_h = (108, 54) if has_logo else (0, 0)
         logo_gap = 16 if has_logo else 0
 
-        title = "NJAKAM LTD"
+        title = "NJAKAM LIMITED"
         title_font, title_size = "Helvetica-Bold", 28
         addr_lines = [
             TERMINAL_MAIL_ADDRESS_LINE,
-            f"Terminal support: {TERMINAL_MAIL_CONTACT}",
             TERMINAL_MAIL_SUPPORT_EMAIL,
         ]
         addr_font, addr_size = "Helvetica", 10
@@ -914,7 +976,7 @@ def success():
             )
             
             # Create email message
-            subject = f"Njakam LTD Receipt - Transaction {session.get('txn_id')}"
+            subject = f"NJAKAM LIMITED Receipt - Transaction {session.get('txn_id')}"
             body, html_body = _receipt_email_plain_and_html(
                 session.get('txn_id'), amount_fmt, session.get('timestamp')
             )
@@ -934,6 +996,7 @@ def success():
             )
             
             mail.send(msg)
+            _mail_save_copy_to_sent_folder(msg)
             logging.info(f"Receipt email with PDF sent automatically to {recipient_email}")
         except Exception as e:
             logging.exception("Failed to send automatic receipt email")
@@ -1090,7 +1153,7 @@ def send_receipt_email():
         )
         
         # Create email message
-        subject = f"Njakam LTD Receipt - Transaction {session.get('txn_id')}"
+        subject = f"NJAKAM LIMITED Receipt - Transaction {session.get('txn_id')}"
         body, html_body = _receipt_email_plain_and_html(
             session.get('txn_id'), amount_fmt, session.get('timestamp')
         )
@@ -1110,6 +1173,7 @@ def send_receipt_email():
         )
         
         mail.send(msg)
+        _mail_save_copy_to_sent_folder(msg)
         logging.info(f"Receipt email with PDF sent successfully to {recipient_email}")
         return jsonify({'success': True, 'message': 'Receipt sent successfully'}), 200
     
