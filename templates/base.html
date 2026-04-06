@@ -28,7 +28,7 @@
     />
     {% block head_extra %}{% endblock %}
   </head>
-  <body class="{% block body_class %}{% endblock %}">
+  <body class="app-body {% block body_class %}{% endblock %}">
     <header class="app-header">
       <a
         href="{{ url_for('dashboard') if session.get('logged_in') else url_for('login') }}"
@@ -44,7 +44,6 @@
         />
         <span class="app-brand__text">
           <span class="app-brand__name">NJAKAM LIMITED</span>
-          <span class="app-brand__tag">Point of sale</span>
         </span>
       </a>
     </header>

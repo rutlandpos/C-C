@@ -128,14 +128,6 @@ body::before {
   letter-spacing: -0.02em;
 }
 
-.app-brand__tag {
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
 .text-link {
   font-size: 0.875rem;
   font-weight: 600;
@@ -374,6 +366,15 @@ button[disabled] {
 .login-container {
   text-align: center;
   padding-top: 0.5rem;
+}
+
+/* Header already shows large logo + title */
+body.app-body .login-container .login-logo {
+  display: none;
+}
+
+body.app-body .login-container {
+  padding-top: 0.25rem;
 }
 
 .login-logo {
@@ -956,13 +957,8 @@ button[disabled] {
   font-family: var(--font-ui);
 }
 
-/* ——— Dashboard (full-bleed) ——— */
-body.app-body--dashboard {
-  align-items: stretch;
-}
-
-/* Dashboard: centered, larger logo + title */
-body.app-body--dashboard .app-header {
+/* ——— App shell header (base.html: login and all terminal pages) ——— */
+body.app-body .app-header {
   max-width: 100%;
   width: 100%;
   padding: 0.65rem clamp(0.2rem, 0.8vw, 0.3rem) 0.4rem;
@@ -972,29 +968,30 @@ body.app-body--dashboard .app-header {
   gap: 0.25rem;
 }
 
-body.app-body--dashboard .app-brand {
+body.app-body .app-brand {
   flex-direction: column;
   align-items: center;
   text-align: center;
   gap: 0.85rem;
 }
 
-body.app-body--dashboard .app-brand__mark {
+body.app-body .app-brand__mark {
   width: clamp(80px, 22vw, 128px);
   height: clamp(80px, 22vw, 128px);
 }
 
-body.app-body--dashboard .app-brand__text {
+body.app-body .app-brand__text {
   align-items: center;
 }
 
-body.app-body--dashboard .app-brand__name {
+body.app-body .app-brand__name {
   font-size: clamp(1.35rem, 4.8vw, 2rem);
   letter-spacing: -0.03em;
 }
 
-body.app-body--dashboard .app-brand__tag {
-  display: none;
+/* ——— Dashboard (full-bleed) ——— */
+body.app-body--dashboard {
+  align-items: stretch;
 }
 
 .container.container--dashboard {
@@ -1135,11 +1132,6 @@ body.app-body--dashboard .app-brand__tag {
 /* ——— Protocol: online / offline split ——— */
 body.app-body--protocol-mode {
   align-items: stretch;
-}
-
-body.app-body--protocol-mode .app-header {
-  max-width: 100%;
-  width: 100%;
 }
 
 .container.container--protocol-mode {
@@ -1361,11 +1353,8 @@ body.app-body--protocol-mode .app-header {
     align-items: stretch;
   }
 
-  body.app-body--dashboard .app-header {
+  body.app-body .app-header {
     padding: 0.5rem clamp(0.15rem, 0.6vw, 0.25rem) 0.35rem;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
   }
 
   .container.container--dashboard {
@@ -1428,7 +1417,4 @@ body.app-body--protocol-mode .app-header {
     font-size: 1.2rem;
   }
 
-  .app-header {
-    padding: 0.75rem 1rem 0;
-  }
 }
