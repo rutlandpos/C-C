@@ -1,11 +1,11 @@
 services:
   - type: web
-    name: njakam-ltd-pos
+    name: c&c-global-pos
     env: python
     buildCommand: bash build.sh
     startCommand: python app.py
     envVars:
       - key: SECRET_KEY
-        value: njakamltd_secret_key_8583
+        value: c&c-global-secret-key-8583
       - key: FLASK_ENV
         value: production

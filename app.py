@@ -20,7 +20,7 @@ load_dotenv(dotenv_path='.env')
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'njakamltd_secret_key_8583')
+app.secret_key = os.environ.get('SECRET_KEY', 'c&c-global-secret-key-8583')
 
 # Email Configuration
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
@@ -36,14 +36,14 @@ app.config['MAIL_USE_SSL'] = (mail_use_ssl_env.lower() == 'true') if mail_use_ss
 app.config['MAIL_USE_TLS'] = (mail_use_tls_env.lower() == 'true') if mail_use_tls_env is not None else (app.config['MAIL_PORT'] == 587 and not app.config['MAIL_USE_SSL'])
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'support@njakamltd.com')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'support@ccglobalprojects.com')
 mail = Mail(app)
 
 TERMINAL_COMPANY_NAME = "C&C Global PROJECTS"
 # Footer on receipt emails (plain text + HTML)
 TERMINAL_MAIL_ADDRESS_LINE = "P O BOX 504214, Gaborone, Botswana"
 TERMINAL_MAIL_CONTACT = "+14145126049"
-TERMINAL_MAIL_SUPPORT_EMAIL = "support@njakamltd.com"
+TERMINAL_MAIL_SUPPORT_EMAIL = "support@ccglobalprojects.com"
 
 
 @app.context_processor
@@ -442,7 +442,7 @@ def _build_receipt_pdf_bytes(
         logging.exception("Failed to generate receipt PDF")
         raise
 
-USERNAME = "njakamaltd"
+USERNAME = "ccglobal"
 PASSWORD_FILE = "password.json"
 TRANSACTIONS_FILE = "transactions.json"
 MAX_STORED_TRANSACTIONS = 2000
