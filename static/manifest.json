@@ -1,12 +1,12 @@
 {
-  "name": "C&C Global PROJECT",
+  "name": "C&C Global PROJECTS",
   "short_name": "C&C Global",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#e8edf4",
   "theme_color": "#0f766e",
-  "description": "A realistic POS Terminal Simulation for C&C Global PROJECT.",
+  "description": "A realistic POS Terminal Simulation for C&C Global PROJECTS.",
   "orientation": "portrait",
   "icons": [
     {

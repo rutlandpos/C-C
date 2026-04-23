@@ -1,4 +1,4 @@
-# app.py - C&C Global PROJECT POS (all cards auto-authorize)
+# app.py - C&C Global PROJECTS POS (all cards auto-authorize)
 from flask import Flask, render_template, request, redirect, session, url_for, send_file, flash, jsonify
 from flask_mail import Mail, Message
 import random, logging, os, hashlib, json, re, tempfile, threading
@@ -39,7 +39,7 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'support@njakamltd.com')
 mail = Mail(app)
 
-TERMINAL_COMPANY_NAME = "C&C Global PROJECT"
+TERMINAL_COMPANY_NAME = "C&C Global PROJECTS"
 # Footer on receipt emails (plain text + HTML)
 TERMINAL_MAIL_ADDRESS_LINE = "P O BOX 504214, Gaborone, Botswana"
 TERMINAL_MAIL_CONTACT = "+14145126049"
