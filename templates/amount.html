@@ -19,7 +19,7 @@
     pattern="^\d+(\.\d{1,2})?$"
     required
     autocomplete="off"
-    maxlength="12"
+    maxlength="14"
     placeholder="0.00"
   />
   <small id="amtWarn" style="color: var(--color-danger); display: none"></small>
@@ -31,8 +31,53 @@
   const amtWarn = document.getElementById("amtWarn");
   const amountNext = document.getElementById("amountNext");
 
-  const MIN = 1000000;
+  const MIN = 1;
   const MAX = 50000000;
+
+  function roundMoney(n) {
+    return Math.round(n * 100) / 100;
+  }
+
+  function parseAmount() {
+    const v = amountInput.value.trim();
+    if (v === "" || v === ".") return NaN;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  function validateAndToggle() {
+    const v = amountInput.value;
+    const num = parseAmount();
+    const decParts = v.split(".");
+    const tooManyDecimals = decParts[1] && decParts[1].length > 2;
+
+    if (tooManyDecimals) {
+      amtWarn.style.display = "block";
+      amtWarn.innerText = "Use at most two decimal places.";
+      amountNext.disabled = true;
+      return;
+    }
+    if (!isNaN(num) && num > MAX) {
+      amtWarn.style.display = "block";
+      amtWarn.innerText = `Amount must be ≤ ${MAX.toLocaleString()} USD.`;
+      amountNext.disabled = true;
+      return;
+    }
+    if (v === "" || v === "." || isNaN(num)) {
+      amtWarn.style.display = "block";
+      amtWarn.innerText = "Enter a valid amount.";
+      amountNext.disabled = true;
+      return;
+    }
+    if (num < MIN) {
+      amtWarn.style.display = "block";
+      amtWarn.innerText = `Minimum amount is $${MIN} USD.`;
+      amountNext.disabled = true;
+      return;
+    }
+    amtWarn.style.display = "none";
+    amountNext.disabled = false;
+  }
 
   amountInput.addEventListener("input", () => {
     let v = amountInput.value.replace(/[^\d.]/g, "");
@@ -48,29 +93,18 @@
       v = v.replace(/^0+/, "") || "0";
     }
     amountInput.value = v;
-
-    const num = parseFloat(v);
-    if (!isNaN(num) && num > MAX) {
-      amtWarn.style.display = "block";
-      amtWarn.innerText = `Amount must be ≤ ${MAX.toLocaleString()}`;
-      amountNext.disabled = true;
-    } else if (v === "" || v === "." || isNaN(num)) {
-      amtWarn.style.display = "block";
-      amtWarn.innerText = "Enter a valid number.";
-      amountNext.disabled = true;
-    } else {
-      amtWarn.style.display = "none";
-      amountNext.disabled = false;
-    }
+    validateAndToggle();
   });
 
   document.querySelector("form").addEventListener("submit", function (e) {
-    const num = parseInt(amountInput.value, 10);
+    const num = roundMoney(parseAmount());
     if (isNaN(num) || num < MIN || num > MAX) {
       e.preventDefault();
       amtWarn.style.display = "block";
-      amtWarn.innerText = "Min: 1000000 | Max: 50000000";
+      amtWarn.innerText = `Amount must be between $${MIN} and ${MAX.toLocaleString()} USD.`;
     }
   });
+
+  validateAndToggle();
 </script>
 {% endblock %}

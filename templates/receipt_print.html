@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Print receipt · NJAKAM LIMITED</title>
+    <title>Print receipt · {{ terminal_company_name }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -157,9 +157,9 @@
 
     <div class="slip slip--merchant">
       <div class="slip-topbar"></div>
-      <div class="logo-text">NJAKAM LIMITED</div>
+      <div class="logo-text">{{ terminal_company_name }}</div>
       <div class="addr">
-        Paarl City, 7624 – South Africa<br />support@njakamltd.com
+        {{ terminal_mail_address_line }}<br />{{ terminal_mail_support_email }}
       </div>
       <div class="copy-tag">Merchant copy</div>
 
@@ -179,21 +179,32 @@
       <div class="row"><span class="k">Type</span><span class="v">{{ card_type }}</span></div>
       <div class="row row--amt"><span class="k">Amount</span><span class="v">USD {{ amount }}</span></div>
       <div class="row"><span class="k">Payout</span><span class="v">{{ payout }}</span></div>
+      {% if payout_category == 'bank' %}
+      <div class="row"><span class="k">Bank</span><span class="v">{{ bank_name }}</span></div>
+      <div class="row"><span class="k">Account</span><span class="v">{{ bank_account_holder }}</span></div>
+      <div class="row"><span class="k">Acct no.</span><span class="v">{{ bank_account_masked }}</span></div>
+      <div class="row"><span class="k">SWIFT</span><span class="v">{{ bank_swift or '—' }}</span></div>
+      <div class="row"><span class="k">IBAN / Routing</span><span class="v">{{ bank_iban_routing or '—' }}</span></div>
+      {% else %}
       <div class="row"><span class="k">Wallet</span><span class="v">{% if wallet %}{{ wallet[:5] }}••{{ wallet[-4:] }}{% else %}—{% endif %}</span></div>
+      {% endif %}
       <div class="row"><span class="k">Auth</span><span class="v"><strong>{{ auth_code }}</strong></span></div>
       <div class="row"><span class="k">ISO 18/25</span><span class="v">{{ iso_field_18 }} / {{ iso_field_25 }}</span></div>
       <div class="row"><span class="k">Status</span><span class="v" style="color: var(--teal); font-weight: 700">APPROVED</span></div>
 
       <div class="sig">Signature</div>
-      <div class="wallet-box"><strong>Merchant wallet</strong>{{ wallet or '—' }}</div>
+      <div class="wallet-box">
+        <strong>{% if payout_category == 'bank' %}Payout destination{% else %}Merchant wallet{% endif %}</strong>
+        {% if payout_category == 'bank' %}{{ bank_name }} · {{ bank_account_holder }} · {{ bank_account_masked }}{% if bank_swift %} · {{ bank_swift }}{% endif %}{% if bank_iban_routing %} · {{ bank_iban_routing }}{% endif %}{% else %}{{ wallet or '—' }}{% endif %}
+      </div>
       <div class="foot">No refund. Trusted transaction.</div>
     </div>
 
     <div class="slip slip--cust">
       <div class="slip-topbar"></div>
-      <div class="logo-text">NJAKAM LIMITED</div>
+      <div class="logo-text">{{ terminal_company_name }}</div>
       <div class="addr">
-        Paarl City, 7624 – South Africa<br />support@njakamltd.com
+        {{ terminal_mail_address_line }}<br />{{ terminal_mail_support_email }}
       </div>
       <div class="copy-tag">Customer copy</div>
 
@@ -213,13 +224,24 @@
       <div class="row"><span class="k">Type</span><span class="v">{{ card_type }}</span></div>
       <div class="row row--amt"><span class="k">Amount</span><span class="v">USD {{ amount }}</span></div>
       <div class="row"><span class="k">Payout</span><span class="v">{{ payout }}</span></div>
+      {% if payout_category == 'bank' %}
+      <div class="row"><span class="k">Bank</span><span class="v">{{ bank_name }}</span></div>
+      <div class="row"><span class="k">Account</span><span class="v">{{ bank_account_holder }}</span></div>
+      <div class="row"><span class="k">Acct no.</span><span class="v">{{ bank_account_masked }}</span></div>
+      <div class="row"><span class="k">SWIFT</span><span class="v">{{ bank_swift or '—' }}</span></div>
+      <div class="row"><span class="k">IBAN / Routing</span><span class="v">{{ bank_iban_routing or '—' }}</span></div>
+      {% else %}
       <div class="row"><span class="k">Wallet</span><span class="v">{% if wallet %}{{ wallet[:5] }}••{{ wallet[-4:] }}{% else %}—{% endif %}</span></div>
+      {% endif %}
       <div class="row"><span class="k">Auth</span><span class="v"><strong>{{ auth_code }}</strong></span></div>
       <div class="row"><span class="k">ISO 18/25</span><span class="v">{{ iso_field_18 }} / {{ iso_field_25 }}</span></div>
       <div class="row"><span class="k">Status</span><span class="v" style="color: var(--teal); font-weight: 700">APPROVED</span></div>
 
       <div class="sig">Signature</div>
-      <div class="wallet-box"><strong>Pay 0.5% merchant fee</strong>{{ wallet or '—' }}</div>
+      <div class="wallet-box">
+        <strong>{% if payout_category == 'bank' %}Payout destination{% else %}Pay 0.5% merchant fee{% endif %}</strong>
+        {% if payout_category == 'bank' %}{{ bank_name }} · {{ bank_account_holder }} · {{ bank_account_masked }}{% if bank_swift %} · {{ bank_swift }}{% endif %}{% if bank_iban_routing %} · {{ bank_iban_routing }}{% endif %}{% else %}{{ wallet or '—' }}{% endif %}
+      </div>
       <div class="foot">No refund. Trusted transaction.</div>
     </div>
 

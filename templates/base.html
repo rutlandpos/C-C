@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>{% block title %}NJAKAM LIMITED{% endblock %} · Terminal</title>
+    <title>{% block title %}{{ terminal_company_name }}{% endblock %} · Terminal</title>
     <link
       rel="manifest"
       href="{{ url_for('static', filename='manifest.json') }}"
@@ -36,14 +36,14 @@
       >
         <img
           src="{{ url_for('static', filename='logo.png') }}"
-          alt=""
+          alt="{{ terminal_company_name }}"
           class="app-brand__mark"
           width="40"
           height="40"
           decoding="async"
         />
         <span class="app-brand__text">
-          <span class="app-brand__name">NJAKAM LIMITED</span>
+          <span class="app-brand__name">{{ terminal_company_name }}</span>
         </span>
       </a>
     </header>

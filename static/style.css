@@ -1,4 +1,4 @@
-/* NJAKAM LIMITED — “Ledger & Tide” design system: calm, retail-friendly, distinct from terminal clichés */
+/* C&C Global PROJECT — “Ledger & Tide” design system: calm, retail-friendly, distinct from terminal clichés */
 
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap");
 
@@ -555,6 +555,27 @@ body.app-body .login-container {
 }
 
 /* Payout page */
+.payout-page .payout-section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin: 0 0 0.5rem;
+}
+
+.payout-page .row--category {
+  margin-bottom: 1.15rem;
+}
+
+.payout-page .payout-panel {
+  margin-bottom: 0.25rem;
+}
+
+.payout-page .payout-panel > label:first-of-type {
+  margin-top: 0;
+}
+
 .payout-page .row {
   display: flex;
   flex-wrap: wrap;

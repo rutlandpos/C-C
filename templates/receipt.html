@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Receipt · NJAKAM LIMITED</title>
+    <title>Receipt · {{ terminal_company_name }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -256,7 +256,7 @@
   <body>
     <div class="receipt-shell">
       <div class="receipt-toolbar">
-        <span class="brand-mini">NJAKAM LIMITED</span>
+        <span class="brand-mini">{{ terminal_company_name }}</span>
         {% if server_id == 'OFFLINE' %}
         <span class="conn-badge conn-badge--offline">Offline capture</span>
         {% else %}
@@ -266,10 +266,10 @@
 
       <!-- Merchant -->
       <article class="receipt-card">
-        <img src="{{ url_for('static', filename='logo.png') }}" alt="" class="receipt-logo" />
-        <h1 class="receipt-title">NJAKAM LIMITED</h1>
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="{{ terminal_company_name }}" class="receipt-logo" />
+        <h1 class="receipt-title">{{ terminal_company_name }}</h1>
         <p class="receipt-sub">
-          Paarl City, 7624 – South Africa · support@njakamltd.com
+          {{ terminal_mail_address_line }} · {{ terminal_mail_support_email }}
         </p>
         <div class="copy-pill-wrap"><span class="copy-pill">Merchant copy</span></div>
 
@@ -296,7 +296,18 @@
           <dd class="amt-highlight">USD {{ amount }}</dd>
           <dt>Payout</dt>
           <dd>{{ payout }}</dd>
-          {% if wallet %}
+          {% if payout_category == 'bank' %}
+          <dt>Bank</dt>
+          <dd>{{ bank_name }}</dd>
+          <dt>Account</dt>
+          <dd>{{ bank_account_holder }}</dd>
+          <dt>Acct no.</dt>
+          <dd>{{ bank_account_masked }}</dd>
+          <dt>SWIFT</dt>
+          <dd>{{ bank_swift or '—' }}</dd>
+          <dt>IBAN / Routing</dt>
+          <dd>{{ bank_iban_routing or '—' }}</dd>
+          {% elif wallet %}
           <dt>Wallet</dt>
           <dd>{{ wallet[:5] }}••••{{ wallet[-4:] }}</dd>
           {% endif %}
@@ -326,10 +337,10 @@
 
       <!-- Customer -->
       <article class="receipt-card receipt-card--customer">
-        <img src="{{ url_for('static', filename='logo.png') }}" alt="" class="receipt-logo" />
-        <h1 class="receipt-title">NJAKAM LIMITED</h1>
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="{{ terminal_company_name }}" class="receipt-logo" />
+        <h1 class="receipt-title">{{ terminal_company_name }}</h1>
         <p class="receipt-sub">
-          Paarl City, 7624 – South Africa · support@njakamltd.com
+          {{ terminal_mail_address_line }} · {{ terminal_mail_support_email }}
         </p>
         <div class="copy-pill-wrap"><span class="copy-pill">Customer copy</span></div>
 
@@ -356,7 +367,18 @@
           <dd class="amt-highlight">USD {{ amount }}</dd>
           <dt>Payout</dt>
           <dd>{{ payout }}</dd>
-          {% if wallet %}
+          {% if payout_category == 'bank' %}
+          <dt>Bank</dt>
+          <dd>{{ bank_name }}</dd>
+          <dt>Account</dt>
+          <dd>{{ bank_account_holder }}</dd>
+          <dt>Acct no.</dt>
+          <dd>{{ bank_account_masked }}</dd>
+          <dt>SWIFT</dt>
+          <dd>{{ bank_swift or '—' }}</dd>
+          <dt>IBAN / Routing</dt>
+          <dd>{{ bank_iban_routing or '—' }}</dd>
+          {% elif wallet %}
           <dt>Wallet</dt>
           <dd>{{ wallet[:5] }}••••{{ wallet[-4:] }}</dd>
           {% endif %}
