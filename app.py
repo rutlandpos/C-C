@@ -1,5 +1,5 @@
 # app.py - C&C Global Projects POS (all cards auto-authorize)
-from flask import Flask, render_template, request, redirect, session, url_for, send_file, flash, jsonify
+from flask import Flask, render_template, request, redirect, session, url_for, send_file, send_from_directory, flash, jsonify
 from flask_mail import Mail, Message
 import random, logging, os, hashlib, json, re, tempfile, threading
 from functools import wraps
@@ -21,6 +21,9 @@ logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'c&c-global-secret-key-8583')
+
+# Digital Asset Links etc.: always the `.well-known` folder next to this file (not cwd-dependent).
+_WELL_KNOWN_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".well-known")
 
 # Email Configuration
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
@@ -1420,10 +1423,10 @@ def service_worker():
     return send_file(sw_path, mimetype='application/javascript')
 
 
-@app.route('/.well-known/assetlinks.json')
-def assetlinks():
-    assetlinks_path = os.path.join(app.root_path, 'static', '.well-known', 'assetlinks.json')
-    return send_file(assetlinks_path, mimetype='application/json')
+@app.route("/.well-known/<path:filename>")
+def well_known(filename):
+    return send_from_directory(_WELL_KNOWN_DIR, filename)
+
 
 @app.route('/manifest.json')
 def manifest():
