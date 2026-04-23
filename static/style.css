@@ -1,4 +1,4 @@
-/* C&C Global PROJECTS — “Ledger & Tide” design system: calm, retail-friendly, distinct from terminal clichés */
+/* C&C Global Projects — “Ledger & Tide” design system: calm, retail-friendly, distinct from terminal clichés */
 
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap");
 
@@ -552,6 +552,36 @@ body.app-body .login-container {
 
 .protocol-submit-wrap {
   margin-top: 0.25rem;
+}
+
+/* Post–card activation lock */
+.activation-lock-page {
+  text-align: center;
+  max-width: 22rem;
+  margin: 0 auto;
+}
+
+.activation-lock-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+  filter: grayscale(0.15);
+}
+
+.activation-lock-page h2 {
+  margin-bottom: 0.35rem;
+}
+
+.activation-lock-page .form-wrap {
+  text-align: left;
+  margin-top: 1.25rem;
+}
+
+.activation-lock-page #activation_key {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  letter-spacing: 0.2em;
+  text-align: center;
 }
 
 /* Payout page */

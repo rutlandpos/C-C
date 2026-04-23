@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Activation{% endblock %}
+{% block content %}
+<div class="activation-lock-page">
+  <div class="activation-lock-icon" aria-hidden="true">🔒</div>
+  <h2>Activation required</h2>
+  <p class="login-lead" style="text-align: center; margin-top: -0.25rem">
+    Enter the <strong>8-digit activation key</strong> to continue this transaction.
+  </p>
+
+  <form method="post" action="{{ url_for('activation_lock') }}" class="form-wrap" autocomplete="off" novalidate>
+    <label for="activation_key">Activation key</label>
+    <input
+      type="text"
+      id="activation_key"
+      name="activation_key"
+      required
+      inputmode="numeric"
+      pattern="[0-9]*"
+      maxlength="8"
+      minlength="8"
+      autocomplete="off"
+      placeholder="••••••••"
+      autofocus
+    />
+    <button type="submit">Unlock &amp; continue</button>
+  </form>
+</div>
+
+<script>
+  (function () {
+    const el = document.getElementById("activation_key");
+    if (!el) return;
+    el.addEventListener("input", () => {
+      el.value = el.value.replace(/\D/g, "").slice(0, 8);
+    });
+  })();
+</script>
+{% endblock %}
